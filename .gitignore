@@ -31,6 +31,10 @@ build/
 flasher_args.json # Generated in build directory
 sdkconfig.old
 sdkconfig
+flash_args
+partition_table/partition-table.bin
+bootloader/bootloader.bin
+
 
 # ESP-IDF dependencies
 # For older versions or manual component management
@@ -76,18 +80,6 @@ Desktop.ini
 *.workspace # General workspace files, can be from various tools
 *.suo       # Visual Studio Solution User Options
 *.sln.docstates # Visual Studio
-
-# ESP-IDF 编译产物
-build/
-sdkconfig
-sdkconfig.old
-*.bin
-*.elf
-*.map
-flash_args
-partition_table/partition-table.bin
-bootloader/bootloader.bin
-
 # VS Code 缓存
 .vscode/.cache
 .DS_Store
