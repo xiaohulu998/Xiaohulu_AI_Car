@@ -1,9 +1,93 @@
-项目名称：基于ESP32S3N16R8单片机下开发的xiaohulu_AI智能小车
+**项目名称：基于ESP32S3N16R8单片机下开发的xiaohulu_AI智能小车**
 
-20260709 
-v1. 搭建基础框架，初步设计功能：电机驱动轮子、测距避障、蓝牙WiFi控制，灯带显示状态
+**20260709 **
+v1. 搭建基础框架，初步设计功能：电机驱动轮子，测距避障，蓝牙WiFi控制，灯带显示状态，OTA升级
+
+1.灯6个，前灯 左右
+    后灯 左右
+    中灯 左右
+components/BSP/LED/
+├── led_ws2812.h    # 头文件：类型定义 + API 声明
+└── led_ws2812.c    # 实现：RMT 时序编码 + 效果引擎
+┌──────────────────────────────────────┐
+│          上层业务代码                  │
+│  (main.c / 其他组件)                  │
+├──────────────────────────────────────┤
+│  ws2812_set_all / set_led / flush    │  ← 直接控制（立即生效）
+│  ws2812_effect_start(XX, cfg)        │  ← 效果引擎（异步非阻塞）
+├──────────────────────────────────────┤
+│       FreeRTOS 效果任务               │
+│   ┌─── 呼吸 ── 闪烁 ── 流水 ──┐      │
+│   │  彩虹  警示  跑马  双闪    │      │
+│   │  填充  剧院  彗星  火焰    │      │
+│   └───────────────────────────┘      │
+├──────────────────────────────────────┤
+│   RMT 编码层 (GRB → 纳秒级脉冲)       │
+├──────────────────────────────────────┤
+│   ESP32-S3 RMT 硬件外设 → GPIO        │
+└──────────────────────────────────────┘
+12 种灯效
+效果	枚举值	典型用途
+静态常亮	STATIC	固定颜色照明
+呼吸灯	BREATHING	待机状态（柔和单色呼吸）
+闪烁	BLINK	故障提示（指定次数）
+流水灯	FLOW	Bluetooth/WiFi 连接成功（渐变流水）
+彩虹渐变	RAINBOW	自动巡航模式（动态彩色流动）
+警示爆闪	WARNING	障碍物分级预警（间隔越小越紧急）
+跑马灯	MARQUEE	色彩流动展示
+双闪	DUAL_BLINK	左右交替警示
+颜色填充	COLOR_WIPE	开机动画（逐个点亮）
+剧院追逐	THEATER_CHASE	经典追逐效果
+彗星拖尾	COMET	单方向拖尾光效
+火焰模拟	FIRE	氛围灯 / 双火源
+
+// ========== 1. 初始化（GPIO48，6颗灯珠） ==========
+ws2812_init(GPIO_NUM_48, 6);
+
+// ========== 2. 直接控制 ==========
+ws2812_set_all(WS2812_COLOR_RED);           // 全红
+ws2812_set_led(LED_FRONT_LEFT, ws2812_color(0, 255, 0));  // 前左绿色
+ws2812_clear_all();                          // 全灭
+
+// ========== 3. 启动效果 ==========
+
+// 待机 — 蓝色呼吸灯
+ws2812_effect_cfg_t cfg = {
+    .breathing_cfg = { .color = WS2812_COLOR_BLUE, .period_ms = 2000 }
+};
+ws2812_effect_start(WS2812_EFFECT_BREATHING, &cfg);
+
+// WiFi 连接 — 绿色流水灯
+ws2812_effect_start(WS2812_EFFECT_FLOW,
+    &(ws2812_effect_cfg_t){.flow_cfg = {.color = WS2812_COLOR_GREEN, .speed_ms = 80, .width=1}});
+
+// 障碍物预警 — 红色爆闪（越近 interval 越小）
+ws2812_effect_start(WS2812_EFFECT_WARNING,
+    &(ws2812_effect_cfg_t){.warning_cfg = {.color = WS2812_COLOR_RED, .interval_ms = 100}});
+
+// 中距离 — 黄色，慢闪
+ws2812_effect_start(WS2812_EFFECT_WARNING,
+    &(ws2812_effect_cfg_t){.warning_cfg = {.color = WS2812_COLOR_YELLOW, .interval_ms = 400}});
+
+// 自动巡航 — 彩虹
+ws2812_effect_start(WS2812_EFFECT_RAINBOW, NULL);  // NULL 使用默认配置
+
+// 故障爆闪 — 红色高频
+ws2812_effect_start(WS2812_EFFECT_WARNING,
+    &(ws2812_effect_cfg_t){.warning_cfg = {.color = WS2812_COLOR_RED, .interval_ms = 60, .duty_on_pct = 20}});
+
+// 开机动画 — 逐个填充绿色
+ws2812_effect_start(WS2812_EFFECT_COLOR_WIPE,
+    &(ws2812_effect_cfg_t){.color_wipe_cfg = {.color = WS2812_COLOR_GREEN, .interval_ms = 150}});
+
+// ========== 4. 停止 ==========
+ws2812_effect_stop_and_clear();  // 停止效果并全灭
 
 
+
+
+2.电机4个 前电机 左右
+        后电机 左右
 
 
 
