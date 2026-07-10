@@ -1,6 +1,8 @@
 #ifndef WEB_SERVER_BRIDGE_H
 #define WEB_SERVER_BRIDGE_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

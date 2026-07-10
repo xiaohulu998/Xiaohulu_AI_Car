@@ -10,13 +10,11 @@
 
 # 源码子文件目录
 set(src_dirs
-            LED
             WIFI
             )
 
 # 对外暴露头文件目录，其他文件 #include "XX.h" 可直接找到 BSP/XX/XX.h
 set(include_dirs
-            LED
             WIFI
             )
 # 当前BSP组件依赖官方组件目录
@@ -26,6 +24,7 @@ set(requires
             nvs_flash
             esp_netif
             esp_http_server
+            esp_timer
                 )
 
 # 注册【BSP组件】到组件列表中, 以便其他组件可以依赖使用
