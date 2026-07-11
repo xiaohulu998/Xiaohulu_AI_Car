@@ -1,17 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-
-//自建头文件
-#include "wifi_nvs.h"
-#include "wifi_mode.h"
-#include "web_server_bridge.h"
-
-//官方头文件
-#include "nvs_flash.h"
-#include "esp_netif.h"
-#include "esp_event.h"
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include "wifi.h"
 
 // 确保系统级初始化只执行一次
 static bool s_sys_inited = false;
@@ -20,8 +7,8 @@ static bool s_sys_inited = false;
 void on_wifi_config_submit(const char *ssid, const char *pass)
 {
     printf("收到配网信息 SSID:%s PWD:%s\n", ssid, pass);
-    wifi_store_t store = {0};
-    strncpy(store.ssid, ssid, WIFI_SSID_LEN - 1);
+    wifi_store_t store = {0};   //结构体变量赋初值0
+    strncpy(store.ssid, ssid, WIFI_SSID_LEN - 1);     //限制最大复制长度,减1减掉\0 字符串结束符
     strncpy(store.password, pass, WIFI_PASS_LEN - 1);
     wifi_nvs_save(&store);
 
@@ -46,19 +33,19 @@ void wifi_conect_init(void)
 {
     // ── 系统级资源（全局仅初始化一次） ──
     if (!s_sys_inited) {
-        esp_err_t ret = nvs_flash_init();
+        esp_err_t ret = nvs_flash_init(); 
         if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
             nvs_flash_erase();
-            nvs_flash_init();
+            nvs_flash_init(); //后期将优化此部分。此上部分建议放在main.c，避免别的组件初始化了nvs，又需要重新配网。
         }
-        esp_netif_init();
-        esp_event_loop_create_default();
+        esp_netif_init();   //初始化LWIP协议栈
+        esp_event_loop_create_default();  //创建循环事件组
         s_sys_inited = true;
     }
 
     // 注册回调
-    web_server_reg_wifi_config_cb(on_wifi_config_submit);
-    wifi_set_sta_connect_cb(on_sta_wifi_connected);
+    web_server_reg_wifi_config_cb(on_wifi_config_submit); //Web 收到配网信息 → 触发 on_wifi_config_submit()。1.存密码；2.切换sta模式
+    wifi_set_sta_connect_cb(on_sta_wifi_connected); //STA 联网成功获取 IP → 触发 on_sta_wifi_connected()。开启执行业务函数（未写）
 
     // 根据NVS中是否有保存的WiFi决定启动模式
     wifi_store_t wifi_cfg;

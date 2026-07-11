@@ -235,7 +235,7 @@ void web_server_stop(void)
     }
 
     if (g_server) {
-        httpd_stop(g_server);
+        httpd_stop(g_server);  
         g_server = NULL;
         ESP_LOGI(TAG, "配网服务器已停止");
     }

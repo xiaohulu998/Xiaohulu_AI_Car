@@ -12,17 +12,7 @@
  */
 
 #include "wifi_nvs.h"
-#include "nvs_flash.h"
-#include "nvs.h"
-#include <string.h>
-#include <stdio.h>
 
-/* NVS 命名空间：所有 Wi-Fi 相关键值对存放在 "wifi_info" 下 */
-#define NVS_NAMESPACE "wifi_info"
-
-/* 键名：SSID / 密码 */
-#define KEY_SSID "ssid"
-#define KEY_PASS "pass"
 
 /* ========================================================================
  *  对外 API

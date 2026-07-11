@@ -9,24 +9,8 @@
  */
 
 #include "wifi_mode.h"
-#include <string.h>
-#include "esp_wifi.h"
-#include "esp_netif.h"
-#include "freertos/event_groups.h"
-#include "esp_event.h"
-#include "web_server_bridge.h"
 
-/* ========================================================================
- *  宏定义 & 静态变量
- * ======================================================================== */
-
-/* AP 模式默认热点名称 */
-#define AP_SSID "ESP32_WIFI_CONFIG"
-/* AP 模式默认密码（WPA2 要求至少 8 位） */
-#define AP_PASS "12345678"
-
-/* 事件组标志位：Wi-Fi 连接成功并获取到 IP */
-#define WIFI_CONNECTED_BIT BIT0
+//静态变量区
 
 /* 事件组句柄，用于同步等待 STA 连接结果 */
 static EventGroupHandle_t wifi_event_group;
@@ -38,6 +22,7 @@ static wifi_sta_connected_cb sta_conn_cb = NULL;
 static esp_event_handler_instance_t s_wifi_evt_handle = NULL;
 /* IP 事件处理器实例句柄 */
 static esp_event_handler_instance_t s_ip_evt_handle   = NULL;
+
 
 /* ========================================================================
  *  内部函数
@@ -54,7 +39,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 {
     if (event_base == WIFI_EVENT)
     {
-        if (event_id == WIFI_EVENT_STA_DISCONNECTED)
+        if (event_id == WIFI_EVENT_STA_DISCONNECTED)    //站点断开连接
         {
             /* STA 断线自动重连 */
             esp_wifi_connect();
@@ -62,6 +47,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
+        //在esp-idf循环事件基础上，再套一层freertos事件标志组
         /* 拿到 IP 才算真正连上，设置标志位并回调上层 */
         xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
         if (sta_conn_cb) sta_conn_cb();
@@ -116,7 +102,7 @@ void wifi_start_ap_mode(void)
     /* 设置为 AP 模式并应用配置 */
     esp_wifi_set_mode(WIFI_MODE_AP);
     esp_wifi_set_config(WIFI_IF_AP, &ap_cfg);
-    esp_wifi_start();
+    esp_wifi_start();      //必须启动，不然没效果
 
     /* 启动网页配网服务（桥接 C++ WebServer） */
     web_server_start(80);

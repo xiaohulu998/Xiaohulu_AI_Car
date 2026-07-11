@@ -1,6 +1,6 @@
 # 项目名称：基于ESP32S3N16R8单片机下开发的xiaohulu_AI智能小车
 
-# WiFi 配网流程
+# 一、WiFi 配网流程
 
 ```mermaid
 flowchart TD
