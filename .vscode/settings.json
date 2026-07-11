@@ -19,5 +19,6 @@
     "--query-driver=**",
     "--compile-commands-dir=d:\\00_Xiaohulu_AI_Car\\Xiaohulu_AI_Car\\build"
   ],
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.11.2\\python.exe"
 }

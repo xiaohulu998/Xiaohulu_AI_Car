@@ -9,7 +9,7 @@ extern "C" {
 
 /**
  * @brief WiFi配网信息提交回调
- * @param ssid  用户输入的WiFi名称
+ * @param ssid  用户输入的WiFi名称，不支持中文
  * @param pass  用户输入的WiFi密码
  */
 typedef void (*wifi_config_submit_cb)(const char *ssid, const char *pass);
