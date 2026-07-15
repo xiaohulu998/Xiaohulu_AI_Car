@@ -143,5 +143,5 @@ esp_err_t web_ws_send(uint8_t* data, int len)
     pkt.len = len;
     pkt.type = HTTPD_WS_TYPE_TEXT;  //text格式 
 
-    return httpd_ws_send_data(sever_handle, client_fds, &pkt)   //发送数据
+    return httpd_ws_send_data(sever_handle, client_fds, &pkt);   //发送数据
 }
