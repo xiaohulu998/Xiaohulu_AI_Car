@@ -119,7 +119,15 @@ esp_err_t web_ws_start(ws_cfg_t* cfg)
  * @param 无
  * @return  ESP_OK or ESP_FAIL
 */
-esp_err_t web_ws_stop(void);
+esp_err_t web_ws_stop(void)
+{
+    if(sever_handle)
+    {
+        httpd_stop(sever_handle); //停止http服务器
+        sever_handle = NULL;   //赋值，避免野指针
+    }
+    return ESP_OK;
+}
 
 
 /** 使用websocket协议向客户端发送数据
@@ -127,4 +135,13 @@ esp_err_t web_ws_stop(void);
  * @param len 数据长度
  * @return  ESP_OK or ESP_FAIL
 */
-esp_err_t web_ws_send(uint8_t* data, int len);
+esp_err_t web_ws_send(uint8_t* data, int len)
+{
+    httpd_ws_frame_t pkt;
+    memset(&pkt, 0, sizeof(pkt)); //清零
+    pkt.payload = data;   
+    pkt.len = len;
+    pkt.type = HTTPD_WS_TYPE_TEXT;  //text格式 
+
+    return httpd_ws_send_data(sever_handle, client_fds, &pkt)   //发送数据
+}
