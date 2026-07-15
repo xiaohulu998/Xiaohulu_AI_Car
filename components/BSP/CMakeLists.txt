@@ -39,4 +39,4 @@ component_compile_options(-ffast-math -O2 -Wno-error=format -Wno-format)
 
 # 编译HTML文件夹下的网页资源，生成spiffs分区镜像文件 
 #参数说明：1. 分区名称；2. 网页资源目录；3. 生成的分区镜像文件是否放入flash分区中
-spiffs_creat_partition_image(html "${CMAKE_CURRENT_SOURCE_DIR}/HTML" FLASH_IN_PROJECT)  
+spiffs_create_partition_image(html "${CMAKE_CURRENT_SOURCE_DIR}/HTML" FLASH_IN_PROJECT)  
