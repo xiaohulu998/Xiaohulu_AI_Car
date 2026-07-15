@@ -51,7 +51,7 @@ esp_err_t handle_ws_req(httpd_req_t *r)
         return ret;
     }
     uint8_t *buf = (uint8_t*)malloc(pkt.len + 1); //获取到数据长度后在堆上分配内存，准备接收缓冲区的数据
-    if(buf = NULL)
+    if(buf == NULL)
     {
         return ESP_FAIL;
     }

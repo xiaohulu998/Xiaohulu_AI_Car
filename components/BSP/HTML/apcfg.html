@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no">
+  <title>ESP32-S3 WiFi 配网</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef3f7;
+      --panel: #ffffff;
+      --text: #17212b;
+      --muted: #66727f;
+      --line: #d8e0e7;
+      --primary: #0f8b8d;
+      --primary-dark: #0a6f71;
+      --danger: #b42318;
+      --ok: #16794c;
+      --warn: #9a5b00;
+      --shadow: 0 18px 50px rgba(20, 34, 48, .14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", Arial, sans-serif;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,.25)),
+        var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    main {
+      width: 100%;
+      max-width: 420px;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, .8);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 28px 22px 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      font-weight: 800;
+      letter-spacing: 0;
+      flex: 0 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .hint {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .conn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      margin: 0 0 18px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f6f8fa;
+      color: var(--warn);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+      flex: 0 0 auto;
+    }
+
+    .conn.ok {
+      color: var(--ok);
+    }
+
+    .conn.err {
+      color: var(--danger);
+    }
+
+    label {
+      display: block;
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .field {
+      margin-bottom: 17px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font-size: 16px;
+      outline: none;
+      padding: 0 13px;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(15, 139, 141, .16);
+    }
+
+    input::placeholder {
+      color: #9aa6b2;
+    }
+
+    .password-row input {
+      padding-right: 58px;
+    }
+
+    .toggle {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 48px;
+      height: 36px;
+      border: 0;
+      border-radius: 6px;
+      background: #eef3f7;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .toggle:active {
+      transform: translateY(1px);
+    }
+
+    .tip {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .submit {
+      width: 100%;
+      height: 48px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 750;
+      cursor: pointer;
+      transition: background .15s ease, transform .15s ease;
+    }
+
+    .submit:active {
+      background: var(--primary-dark);
+      transform: translateY(1px);
+    }
+
+    .submit:disabled {
+      cursor: wait;
+      opacity: .72;
+      transform: none;
+    }
+
+    .status {
+      min-height: 20px;
+      margin: 14px 0 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .status.err {
+      color: var(--danger);
+    }
+
+    @media (max-width: 360px) {
+      body {
+        padding: 14px 10px;
+      }
+
+      main {
+        padding: 22px 16px 18px;
+      }
+
+      h1 {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <div class="mark" aria-hidden="true">S3</div>
+      <div>
+        <h1>ESP32-S3 WiFi 配网</h1>
+        <p class="hint">通过 WebSocket 发送 SSID 和密码到设备。</p>
+      </div>
+    </div>
+
+    <div class="conn" id="connState">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="connText">正在连接 WebSocket...</span>
+    </div>
+
+    <form id="wifiForm" autocomplete="on">
+      <div class="field">
+        <label for="ssid">WiFi 名称</label>
+        <input
+          id="ssid"
+          name="ssid"
+          type="text"
+          maxlength="32"
+          placeholder="请输入 SSID"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          required>
+        <p class="tip">SSID 建议使用英文、数字或常见符号。</p>
+      </div>
+
+      <div class="field">
+        <label for="password">WiFi 密码</label>
+        <div class="input-wrap password-row">
+          <input
+            id="password"
+            name="password"
+            type="password"
+            maxlength="64"
+            placeholder="请输入密码"
+            autocomplete="current-password"
+            required>
+          <button class="toggle" id="togglePass" type="button" aria-label="显示或隐藏密码">显示</button>
+        </div>
+      </div>
+
+      <button class="submit" id="submitBtn" type="submit" disabled>保存并连接</button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <script>
+    var ws = null;
+    var reconnectTimer = null;
+
+    function setConnectionState(type, text) {
+      var connState = document.getElementById('connState');
+      var connText = document.getElementById('connText');
+      var submitBtn = document.getElementById('submitBtn');
+
+      connState.className = 'conn' + (type ? ' ' + type : '');
+      connText.textContent = text;
+      submitBtn.disabled = type !== 'ok';
+    }
+
+    function setStatus(type, text) {
+      var status = document.getElementById('status');
+      status.className = 'status' + (type ? ' ' + type : '');
+      status.textContent = text;
+    }
+
+    function buildWifiPayload(ssid, password) {
+      return 'ssid=' + encodeURIComponent(ssid) +
+        '&password=' + encodeURIComponent(password);
+    }
+
+    function initWebSocket() {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+
+      var protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+      var wsUrl = protocol + window.location.host + '/ws';
+
+      setConnectionState('', '正在连接 WebSocket...');
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = function () {
+        setConnectionState('ok', 'WebSocket 已连接');
+        setStatus('', '');
+      };
+
+      ws.onmessage = function (event) {
+        var msg = String(event.data || '');
+        if (msg) {
+          setStatus('ok', msg);
+        }
+      };
+
+      ws.onerror = function () {
+        setConnectionState('err', 'WebSocket 连接异常');
+      };
+
+      ws.onclose = function () {
+        setConnectionState('err', 'WebSocket 已断开，正在重连...');
+        reconnectTimer = setTimeout(initWebSocket, 1500);
+      };
+    }
+
+    function initwebsocket() {
+      initWebSocket();
+    }
+
+    function sendWifiConfig() {
+      var ssid = document.getElementById('ssid');
+      var password = document.getElementById('password');
+      var submitBtn = document.getElementById('submitBtn');
+      var ssidValue = ssid.value.trim();
+      var passwordValue = password.value;
+
+      if (!ssidValue) {
+        setStatus('err', '请输入 WiFi 名称。');
+        ssid.focus();
+        return;
+      }
+
+      if (!passwordValue) {
+        setStatus('err', '请输入 WiFi 密码。');
+        password.focus();
+        return;
+      }
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        setStatus('err', 'WebSocket 未连接，请稍后重试。');
+        initWebSocket();
+        return;
+      }
+
+      ws.send(buildWifiPayload(ssidValue, passwordValue));
+      submitBtn.disabled = true;
+      submitBtn.textContent = '已发送';
+      setStatus('ok', '配网信息已发送，设备正在尝试连接路由器。');
+
+      setTimeout(function () {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '保存并连接';
+        }
+      }, 2500);
+    }
+
+    document.getElementById('togglePass').addEventListener('click', function () {
+      var password = document.getElementById('password');
+      var visible = password.type === 'text';
+      password.type = visible ? 'password' : 'text';
+      this.textContent = visible ? '显示' : '隐藏';
+    });
+
+    document.getElementById('wifiForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      sendWifiConfig();
+    });
+
+    window.addEventListener('load', initWebSocket);
+  </script>
+</body>
+</html>
