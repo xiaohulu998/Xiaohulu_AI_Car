@@ -10,7 +10,7 @@
 
 # 源码子文件目录
 set(src_dirs
-            WIFI
+            WIFI    
             WIFI_M
             HTML
             )
@@ -29,6 +29,8 @@ set(requires
             esp_netif
             esp_http_server
             esp_timer
+            spiffs
+            vfs
                 )
 
 # 注册【BSP组件】到组件列表中, 以便其他组件可以依赖使用
