@@ -217,7 +217,8 @@ void web_server_start(uint16_t port)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = port;
     config.lru_purge_enable = true;
-    config.max_req_hdr_len = 512;  // 默认512不够，手机浏览器请求头较长
+    //config.max_req_hdr_len = 512;  // 默认512不够，手机浏览器请求头较长
+    //config.max_request_header_len = 512;
 
     if (httpd_start(&g_server, &config) == ESP_OK) {
         register_routes();

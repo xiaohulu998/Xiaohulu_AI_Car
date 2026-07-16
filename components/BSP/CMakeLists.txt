@@ -12,7 +12,6 @@
 set(src_dirs
             WIFI    
             WIFI_M
-            HTML
             )
 
 # 对外暴露头文件目录，其他文件 #include "XX.h" 可直接找到 BSP/XX/XX.h
