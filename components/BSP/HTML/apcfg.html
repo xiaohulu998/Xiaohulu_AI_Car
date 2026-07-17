@@ -185,6 +185,44 @@
       line-height: 1.45;
     }
 
+    .row-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .btn {
+      height: 44px;
+      border: 0;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 750;
+      cursor: pointer;
+      transition: background .15s ease, transform .15s ease, opacity .15s ease;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      cursor: wait;
+      opacity: .72;
+      transform: none;
+    }
+
+    .btn-secondary {
+      flex: 0 0 auto;
+      min-width: 110px;
+      padding: 0 14px;
+      background: #eef3f7;
+      color: var(--text);
+    }
+
+    .btn-secondary:active {
+      background: #e3eaef;
+    }
+
     .submit {
       width: 100%;
       height: 48px;
@@ -207,6 +245,80 @@
       cursor: wait;
       opacity: .72;
       transform: none;
+    }
+
+    .wifi-panel {
+      margin: 0 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfd;
+      overflow: hidden;
+    }
+
+    .wifi-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .wifi-list {
+      max-height: 220px;
+      overflow-y: auto;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .wifi-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 12px;
+      border-bottom: 1px solid #edf1f5;
+      cursor: pointer;
+      transition: background .12s ease;
+    }
+
+    .wifi-list li:last-child {
+      border-bottom: 0;
+    }
+
+    .wifi-list li:hover,
+    .wifi-list li:active,
+    .wifi-list li.active {
+      background: rgba(15, 139, 141, .08);
+    }
+
+    .wifi-ssid {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 14px;
+      font-weight: 650;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .wifi-meta {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .wifi-empty {
+      padding: 22px 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
     }
 
     .status {
@@ -247,13 +359,28 @@
       <div class="mark" aria-hidden="true">S3</div>
       <div>
         <h1>ESP32-S3 WiFi 配网</h1>
-        <p class="hint">通过 WebSocket 发送 SSID 和密码到设备。</p>
+        <p class="hint">通过 WebSocket JSON 与设备通信：扫描热点并发送 SSID/密码。</p>
       </div>
     </div>
 
     <div class="conn" id="connState">
       <span class="dot" aria-hidden="true"></span>
       <span id="connText">正在连接 WebSocket...</span>
+    </div>
+
+    <div class="row-actions">
+      <button class="btn btn-secondary" id="scanBtn" type="button" disabled>扫描 WiFi</button>
+      <span class="tip" style="margin:0;align-self:center;">协议：{"scan":"start"}</span>
+    </div>
+
+    <div class="wifi-panel">
+      <div class="wifi-panel-head">
+        <span>附近热点</span>
+        <span id="wifiCount">0 个</span>
+      </div>
+      <ul class="wifi-list" id="wifiList">
+        <li class="wifi-empty" style="display:block;cursor:default;">连接后点击「扫描 WiFi」获取列表</li>
+      </ul>
     </div>
 
     <form id="wifiForm" autocomplete="on">
@@ -264,12 +391,12 @@
           name="ssid"
           type="text"
           maxlength="32"
-          placeholder="请输入 SSID"
+          placeholder="请输入或从上方列表选择 SSID"
           autocomplete="off"
           autocapitalize="none"
           spellcheck="false"
           required>
-        <p class="tip">SSID 建议使用英文、数字或常见符号。</p>
+        <p class="tip">可手动输入，也可点选扫描结果自动填入。</p>
       </div>
 
       <div class="field">
@@ -280,9 +407,8 @@
             name="password"
             type="password"
             maxlength="64"
-            placeholder="请输入密码"
-            autocomplete="current-password"
-            required>
+            placeholder="开放网络可留空"
+            autocomplete="current-password">
           <button class="toggle" id="togglePass" type="button" aria-label="显示或隐藏密码">显示</button>
         </div>
       </div>
@@ -293,28 +419,158 @@
   </main>
 
   <script>
+    /*
+     * 与设备 JSON 协议约定（见 ap_wifi.c）：
+     * 上行：
+     *   扫描：{"scan":"start"}
+     *   连接：{"ssid":"xxx","password":"yyy"}
+     * 下行：
+     *   扫描结果：{"wifi_list":[{"ssid":"...","rssi":-50,"encrypted":true}, ...]}
+     */
     var ws = null;
     var reconnectTimer = null;
+    var scanning = false;
+    var selectedSsid = '';
 
     function setConnectionState(type, text) {
       var connState = document.getElementById('connState');
       var connText = document.getElementById('connText');
       var submitBtn = document.getElementById('submitBtn');
+      var scanBtn = document.getElementById('scanBtn');
+      var online = type === 'ok';
 
       connState.className = 'conn' + (type ? ' ' + type : '');
       connText.textContent = text;
-      submitBtn.disabled = type !== 'ok';
+      submitBtn.disabled = !online;
+      scanBtn.disabled = !online || scanning;
     }
 
     function setStatus(type, text) {
       var status = document.getElementById('status');
       status.className = 'status' + (type ? ' ' + type : '');
-      status.textContent = text;
+      status.textContent = text || '';
     }
 
-    function buildWifiPayload(ssid, password) {
-      return 'ssid=' + encodeURIComponent(ssid) +
-        '&password=' + encodeURIComponent(password);
+    function isWsOpen() {
+      return ws && ws.readyState === WebSocket.OPEN;
+    }
+
+    /* 发送 JSON 对象到设备 */
+    function sendJson(obj) {
+      if (!isWsOpen()) {
+        setStatus('err', 'WebSocket 未连接，请稍后重试。');
+        initWebSocket();
+        return false;
+      }
+      ws.send(JSON.stringify(obj));
+      return true;
+    }
+
+    /* 信号强度简单分级显示 */
+    function rssiLabel(rssi) {
+      var n = Number(rssi);
+      if (isNaN(n)) return '--';
+      if (n >= -55) return '强 ' + n;
+      if (n >= -70) return '中 ' + n;
+      return '弱 ' + n;
+    }
+
+    function renderWifiList(list) {
+      var ul = document.getElementById('wifiList');
+      var countEl = document.getElementById('wifiCount');
+      ul.innerHTML = '';
+
+      if (!list || !list.length) {
+        countEl.textContent = '0 个';
+        ul.innerHTML = '<li class="wifi-empty" style="display:block;cursor:default;">未扫描到热点，请重试</li>';
+        return;
+      }
+
+      // 按信号从强到弱排序
+      list = list.slice().sort(function (a, b) {
+        return (Number(b.rssi) || -999) - (Number(a.rssi) || -999);
+      });
+
+      countEl.textContent = list.length + ' 个';
+
+      list.forEach(function (item) {
+        var ssid = (item && item.ssid != null) ? String(item.ssid) : '';
+        if (!ssid) return;
+
+        var encrypted = !!(item.encrypted);
+        var li = document.createElement('li');
+        if (ssid === selectedSsid) {
+          li.className = 'active';
+        }
+        li.setAttribute('data-ssid', ssid);
+        li.setAttribute('data-encrypted', encrypted ? '1' : '0');
+        li.innerHTML =
+          '<span class="wifi-ssid"></span>' +
+          '<span class="wifi-meta">' +
+            '<span>' + (encrypted ? '🔒' : '开放') + '</span>' +
+            '<span>' + rssiLabel(item.rssi) + '</span>' +
+          '</span>';
+        li.querySelector('.wifi-ssid').textContent = ssid;
+
+        li.addEventListener('click', function () {
+          selectWifi(ssid, encrypted);
+        });
+        ul.appendChild(li);
+      });
+
+      if (!ul.children.length) {
+        countEl.textContent = '0 个';
+        ul.innerHTML = '<li class="wifi-empty" style="display:block;cursor:default;">列表无有效 SSID</li>';
+      }
+    }
+
+    function selectWifi(ssid, encrypted) {
+      selectedSsid = ssid;
+      document.getElementById('ssid').value = ssid;
+
+      var items = document.querySelectorAll('#wifiList li[data-ssid]');
+      for (var i = 0; i < items.length; i++) {
+        items[i].className = items[i].getAttribute('data-ssid') === ssid ? 'active' : '';
+      }
+
+      var password = document.getElementById('password');
+      if (encrypted) {
+        password.placeholder = '请输入密码';
+        password.focus();
+        setStatus('', '已选择「' + ssid + '」，请输入密码后连接。');
+      } else {
+        password.value = '';
+        password.placeholder = '开放网络可留空';
+        setStatus('ok', '已选择开放网络「' + ssid + '」，可直接连接。');
+      }
+    }
+
+    /* 解析设备下发的 JSON */
+    function handleDeviceMessage(raw) {
+      var text = String(raw || '').trim();
+      if (!text) return;
+
+      var data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        // 非 JSON 文本，原样显示
+        setStatus('ok', text);
+        return;
+      }
+
+      // 扫描结果：{"wifi_list":[...]}
+      if (data && Object.prototype.hasOwnProperty.call(data, 'wifi_list')) {
+        scanning = false;
+        document.getElementById('scanBtn').disabled = !isWsOpen();
+        document.getElementById('scanBtn').textContent = '扫描 WiFi';
+        renderWifiList(Array.isArray(data.wifi_list) ? data.wifi_list : []);
+        setStatus('ok', '扫描完成，请选择热点。');
+        return;
+      }
+
+      // 其它 JSON 回包
+      setStatus('ok', text);
     }
 
     function initWebSocket() {
@@ -339,10 +595,7 @@
       };
 
       ws.onmessage = function (event) {
-        var msg = String(event.data || '');
-        if (msg) {
-          setStatus('ok', msg);
-        }
+        handleDeviceMessage(event.data);
       };
 
       ws.onerror = function () {
@@ -350,52 +603,56 @@
       };
 
       ws.onclose = function () {
+        scanning = false;
         setConnectionState('err', 'WebSocket 已断开，正在重连...');
         reconnectTimer = setTimeout(initWebSocket, 1500);
       };
     }
 
-    function initwebsocket() {
-      initWebSocket();
+    /* 上行：{"scan":"start"} */
+    function startScan() {
+      if (scanning) return;
+      if (!sendJson({ scan: 'start' })) return;
+
+      scanning = true;
+      var scanBtn = document.getElementById('scanBtn');
+      scanBtn.disabled = true;
+      scanBtn.textContent = '扫描中...';
+      setStatus('', '正在扫描附近 WiFi...');
     }
 
+    /* 上行：{"ssid":"...","password":"..."} */
     function sendWifiConfig() {
-      var ssid = document.getElementById('ssid');
-      var password = document.getElementById('password');
+      var ssidInput = document.getElementById('ssid');
+      var passwordInput = document.getElementById('password');
       var submitBtn = document.getElementById('submitBtn');
-      var ssidValue = ssid.value.trim();
-      var passwordValue = password.value;
+      var ssidValue = ssidInput.value.trim();
+      var passwordValue = passwordInput.value;
 
       if (!ssidValue) {
-        setStatus('err', '请输入 WiFi 名称。');
-        ssid.focus();
+        setStatus('err', '请输入或选择 WiFi 名称。');
+        ssidInput.focus();
         return;
       }
 
-      if (!passwordValue) {
-        setStatus('err', '请输入 WiFi 密码。');
-        password.focus();
+      // 设备端要求 ssid、password 两个字段都存在；开放网络传空字符串
+      if (!sendJson({ ssid: ssidValue, password: passwordValue })) {
         return;
       }
 
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        setStatus('err', 'WebSocket 未连接，请稍后重试。');
-        initWebSocket();
-        return;
-      }
-
-      ws.send(buildWifiPayload(ssidValue, passwordValue));
       submitBtn.disabled = true;
       submitBtn.textContent = '已发送';
       setStatus('ok', '配网信息已发送，设备正在尝试连接路由器。');
 
       setTimeout(function () {
-        if (ws && ws.readyState === WebSocket.OPEN) {
+        if (isWsOpen()) {
           submitBtn.disabled = false;
           submitBtn.textContent = '保存并连接';
         }
       }, 2500);
     }
+
+    document.getElementById('scanBtn').addEventListener('click', startScan);
 
     document.getElementById('togglePass').addEventListener('click', function () {
       var password = document.getElementById('password');

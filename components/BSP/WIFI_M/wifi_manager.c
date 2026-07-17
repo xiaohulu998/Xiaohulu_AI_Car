@@ -48,10 +48,19 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         {
         case WIFI_EVENT_STA_START: // WIFI以STA模式启动后触发此事件
         {
+            // 仅在已配置过目标 SSID 时才主动连接。
+            // 初始化阶段 STA 空配置下调用 esp_wifi_connect() 会一直 DISCONNECT 重试刷屏。
             wifi_mode_t mode;
             esp_wifi_get_mode(&mode);
             if (mode == WIFI_MODE_STA)
-                esp_wifi_connect(); // 启动WIFI连接
+            {
+                wifi_config_t conf = {0};
+                esp_wifi_get_config(WIFI_IF_STA, &conf);
+                if (conf.sta.ssid[0] != '\0')
+                {
+                    esp_wifi_connect();
+                }
+            }
             break;
         }
         case WIFI_EVENT_STA_CONNECTED: // WIFI连上路由器后，触发此事件
@@ -200,11 +209,21 @@ esp_err_t wifi_manager_ap(void)
     IP4_ADDR(&ipInfo.gw, 192, 168, 100, 1);      // 设置网关地址
     IP4_ADDR(&ipInfo.netmask, 255, 255, 255, 0); // 设置子网掩码
 
-    // DHCP必须停止才能设置网络
-    esp_netif_dhcps_stop(esp_netif_ap);           // 关闭DHCP
-    esp_netif_set_ip_info(esp_netif_ap, &ipInfo); // 设置网络参数
+    // 改 IP 前必须先停 DHCP；设完 IP 后务必再 start，否则手机连上热点却拿不到地址，网页打不开
+    ESP_ERROR_CHECK(esp_netif_dhcps_stop(esp_netif_ap));
+    ESP_ERROR_CHECK(esp_netif_set_ip_info(esp_netif_ap, &ipInfo));
+    ESP_ERROR_CHECK(esp_netif_dhcps_start(esp_netif_ap));
 
-    return esp_wifi_start(); // 启动wifi
+    esp_err_t err = esp_wifi_start();
+    if (err == ESP_OK)
+    {
+        ESP_LOGI(TAG, "AP started: SSID=%s PWD=%s IP=192.168.100.1", WIFI_AP_SSID, WIFI_AP_PSWD);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "esp_wifi_start failed: %s", esp_err_to_name(err));
+    }
+    return err;
 }
 
 /** 启动扫描函数

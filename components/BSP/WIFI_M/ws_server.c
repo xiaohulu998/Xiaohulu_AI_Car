@@ -24,8 +24,14 @@ static httpd_handle_t sever_handle;
 */
 esp_err_t get_http_req(httpd_req_t *r)
 {
-   return httpd_resp_send(r,http_html,HTTPD_RESP_USE_STRLEN);   //发送html网页
-
+    if (http_html == NULL || http_html[0] == '\0')
+    {
+        ESP_LOGE(TAG, "html_code is NULL, webpage not loaded from SPIFFS");
+        httpd_resp_set_status(r, "500 Internal Server Error");
+        return httpd_resp_send(r, "apcfg.html missing", HTTPD_RESP_USE_STRLEN);
+    }
+    httpd_resp_set_type(r, "text/html; charset=utf-8");
+    return httpd_resp_send(r, http_html, HTTPD_RESP_USE_STRLEN);
 }
 
 /** 响应Websocket数据的服务函数
@@ -84,12 +90,29 @@ esp_err_t web_ws_start(ws_cfg_t* cfg)
 {
     if(cfg == NULL)
         return ESP_FAIL;
+    if (sever_handle)
+    {
+        ESP_LOGW(TAG, "http server already running");
+        return ESP_OK;
+    }
+
     http_html = cfg->html_code;  //赋值html网页
     web_receive_fn = cfg->receive_fn; //赋值websocket数据回调函数
+    if (http_html == NULL)
+    {
+        ESP_LOGE(TAG, "start with empty html_code — open / will return 500");
+    }
 
-    httpd_config_t http_cfg = HTTPD_DEFAULT_CONFIG();  //赋值默认配置
-    httpd_start(&sever_handle,&http_cfg);  //传参启动http服务器
-    
+    httpd_config_t http_cfg = HTTPD_DEFAULT_CONFIG();  //默认端口 80
+    http_cfg.lru_purge_enable = true;
+    esp_err_t err = httpd_start(&sever_handle, &http_cfg);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "httpd_start failed: %s", esp_err_to_name(err));
+        sever_handle = NULL;
+        return err;
+    }
+
     //http请求参数设置
     httpd_uri_t uri_get ={
         .uri = "/",  //根目录
@@ -98,14 +121,15 @@ esp_err_t web_ws_start(ws_cfg_t* cfg)
     };
     httpd_register_uri_handler(sever_handle, &uri_get);
 
-    //websocket请求参数设置 要在系统打开wesocket server支持
+    //websocket请求参数设置 要在系统打开websocket server支持
     httpd_uri_t uri_ws = {
-        .uri = "/ws",  //根目录下ws文件夹
+        .uri = "/ws",
         .method = HTTP_GET,
-        .handler = handle_ws_req, //websocket请求处理回调函数
+        .handler = handle_ws_req,
         .is_websocket = true,
     };
     httpd_register_uri_handler(sever_handle, &uri_ws);
+    ESP_LOGI(TAG, "HTTP+WS started on port %d, uri=/ and /ws", http_cfg.server_port);
     return ESP_OK;
 }
 

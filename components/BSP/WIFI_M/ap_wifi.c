@@ -40,23 +40,29 @@ static char* init_web_page_buffer(void)
         .partition_label = "html", //分区名称
     };
     //挂载spiffs
-    esp_vfs_spiffs_register(&conf);  
+    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "SPIFFS mount failed: %s (partition html 是否已烧录?)", esp_err_to_name(ret));
+        return NULL;
+    }
 
     struct stat st;  //用来存放stat()函数查询到的文件属性，文件大小存起来
     //查找文件是否存在
     if(stat(HTML_PATH,&st))  //返回值0代表成功，非0代表失败
     {
-        ESP_LOGE(TAG, "apcfg.html没有找到......");
-        return NULL; 
+        ESP_LOGE(TAG, "apcfg.html没有找到...... path=%s", HTML_PATH);
+        return NULL;
     }
+    ESP_LOGI(TAG, "apcfg.html size=%ld", (long)st.st_size);
      //堆上分配内存，存储html网页
     char* buf = (char* )malloc(st.st_size + 1);  //+1避免字符串/0
     if(!buf)
     {
         return NULL;
     }
-    memset(&buf, 0, st.st_size + 1);  //清空
-    FILE *fp = fopen("SPIFFS_BASE_PATH","r");    //只读方式打开html文件路径，返回有效 FILE* 文件指针fread/fwrite/fclose/stat 等函数
+    memset(buf, 0, st.st_size + 1);  //清空堆缓冲区
+    FILE *fp = fopen(HTML_PATH, "r");    //只读方式打开html文件
     if(fp)
     {
         //从文件读取二进制数据到内存缓冲区
@@ -121,23 +127,25 @@ void wifi_scan_cb(int num, wifi_ap_record_t *ap_record)
     for (int i = 0;i < num; i++)   //遍历ap_records，生成对应的JSON格式
     {   
         cJSON* wifi_js = cJSON_CreateObject();
-        cJSON* wifi_js_ssid = cJSON_AddStringToObject(wifi_js, "ssid", (char *)ap_record[i].ssid);  //填充账号名称 
-        cJSON* wifi_js_rssi = cJSON_AddNumberToObject(wifi_js, "rssi", ap_record[i].rssi);   //填充信号强度
-        if(ap_record[1].authmode == WIFI_AUTH_OPEN)  //判断一下是否为加密WIFI
+        cJSON_AddStringToObject(wifi_js, "ssid", (char *)ap_record[i].ssid);  //填充账号名称
+        cJSON_AddNumberToObject(wifi_js, "rssi", ap_record[i].rssi);   //填充信号强度
+        if(ap_record[i].authmode == WIFI_AUTH_OPEN)  //判断一下是否为加密WIFI
         {
-            cJSON* wifi_js_encrypted = cJSON_AddBoolToObject(wifi_js, "encrypted", 0);
+            cJSON_AddBoolToObject(wifi_js, "encrypted", 0);
         }
-        else 
+        else
         {
-            cJSON* wifi_js_encrypted = cJSON_AddBoolToObject(wifi_js, "encrypted", 1);
+            cJSON_AddBoolToObject(wifi_js, "encrypted", 1);
         }
         cJSON_AddItemToArray(wifi_list_js, wifi_js);  //添加进wifi_list_js数组
     }
-    char * data =cJSON_Print(root);    //返回字符串
-    ESP_LOGI(TAG, "ws 发送:%s", data);
-
-    web_ws_send((uint8_t*) data, strlen(data));  //生成完JSON字符串后，发送列表数据给客户端
-    cJSON_free(data);    //释放data内存，回收
+    char * data = cJSON_Print(root);    //返回字符串
+    if(data)
+    {
+        ESP_LOGI(TAG, "ws 发送:%s", data);
+        web_ws_send((uint8_t*) data, strlen(data));  //生成完JSON字符串后，发送列表数据给客户端
+        cJSON_free(data);    //释放data内存，回收
+    }
     cJSON_Delete(root);  //删除根节点，子节点递归删除
 }
 
@@ -157,34 +165,37 @@ static void ws_receive_cb (uint8_t* payload, int len)
         cJSON* ssid_js = cJSON_GetObjectItem(root, "ssid");  //接收键值对
         cJSON* password_js = cJSON_GetObjectItem(root, "password");
 
+        //如果提取到"scan"，说明这个是下发扫描启动的指令，需要启动扫描
         if(scan_js)
         {
             char* scan_value = cJSON_GetStringValue(scan_js);  //提取scan_js值，字符串
-            //如果提取到"scan"，说明这个是下发扫描启动的指令，需要启动扫描
-            if(strcmp(scan_value, "start") == 0)  //判断字符串是否相等
+            if(scan_value && strcmp(scan_value, "start") == 0)  //判断字符串是否相等
             {
                 //启动扫描
                 wifi_manager_scan(wifi_scan_cb);
-
             }
-           
-            //如果提取到"ssid"和"password"，说明这个是客户端发来要求连接的SSID和密码
-            if(ssid_js && password_js)
+        }
+
+        //如果提取到"ssid"和"password"，说明这个是客户端发来要求连接的SSID和密码
+        if(ssid_js && password_js)
+        {
+            char* ssid_value = cJSON_GetStringValue(ssid_js);   //提取ssid_js值，字符串
+            char* password_value = cJSON_GetStringValue(password_js); //提取password_js值，字符串
+
+            if(ssid_value && password_value)
             {
-                char* ssid_value = cJSON_GetStringValue(ssid_js);   //提取ssid_js值，字符串
-                char* password_value = cJSON_GetStringValue(password_js); //提取password_js值，字符串
-               
-                snprintf(current_ssid, sizeof(current_ssid), ssid_value);  //复制ssid值到全局变量
-                snprintf(current_password, sizeof(current_password), password_value);  //复制password值到全局变量
+                snprintf(current_ssid, sizeof(current_ssid), "%s", ssid_value);  //复制ssid值到全局变量
+                snprintf(current_password, sizeof(current_password), "%s", password_value);  //复制password值到全局变量
 
                 xEventGroupSetBits(apcfg_ev, APCFG_BIT);   //设置事件标志位
 
                 //此回调函数里面由websocket底层调用，不宜直接调用关闭服务器操作
                 //web_ws_stop();
                 //wifi_manager_connect(ssid_value, password_value);   //切换至sta模式连接
-            
             }
         }
+
+        cJSON_Delete(root);  //释放JSON对象树
     }
 }
 
@@ -193,10 +204,17 @@ static void ws_receive_cb (uint8_t* payload, int len)
 */
 void ap_wifi_apcfg()
 {
+    if (html_code == NULL)
+    {
+        ESP_LOGE(TAG, "html_code is NULL, 网页未加载，配网页面将无法显示");
+    }
     wifi_manager_ap();   //调用函数设置成AP模式
     ws_cfg_t ws_cfg ={
-        .html_code = html_code,     
+        .html_code = html_code,
         .receive_fn = ws_receive_cb,
     };
-    web_ws_start(&ws_cfg);
+    if (web_ws_start(&ws_cfg) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "web_ws_start failed");
+    }
 }
