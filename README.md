@@ -23,52 +23,36 @@
 
 ```mermaid
 flowchart TD
-    A["ESP32 启动"] --> B["main.c: app_main()"]
-    B --> C["nvs_flash_init()"]
-    C --> D["ap_wifi_init(wifi_state_handle)"]
-    D --> D1["wifi_manager_init()
-    初始化 netif / event / WiFi
-    默认 WIFI_MODE_STA 启动
-    无 SSID 时不自动 connect"]
-    D --> D2["从 SPIFFS 加载 apcfg.html 到内存"]
-    D --> D3["创建事件组 + ap_wifi_task"]
-    D1 --> E["ap_wifi_apcfg()"]
+    A[ESP32 启动] --> B[main: app_main]
+    B --> C[nvs_flash_init]
+    C --> D[ap_wifi_init]
+    D --> D1[wifi_manager_init 启动 STA 框架]
+    D --> D2[SPIFFS 加载 apcfg.html]
+    D --> D3[创建事件组与 ap_wifi_task]
+    D1 --> E[ap_wifi_apcfg]
     D2 --> E
     D3 --> E
-
-    E --> F["wifi_manager_ap()
-    切到 WIFI_MODE_APSTA
-    开启热点 ESP32S3_AP"]
-    F --> G["web_ws_start()
-    HTTP 提供网页 + /ws"]
-    G --> H["手机连接热点 ESP32S3_AP"]
-    H --> I["浏览器打开 http://192.168.100.1"]
-    I --> J["页面建立 WebSocket: /ws"]
-
-    J --> K{"用户操作"}
-    K -->|点击扫描| L["网页发送 JSON
-    {\"scan\":\"start\"}"]
-    L --> M["ws_receive_cb → wifi_manager_scan()"]
-    M --> N["scan_task 扫描周边 AP"]
-    N --> O["wifi_scan_cb 组装 wifi_list"]
-    O --> P["WebSocket 下发 JSON 列表"]
-    P --> Q["网页渲染热点列表
-    用户点选 SSID"]
-
-    K -->|选择/输入后连接| R["网页发送 JSON
-    {\"ssid\":\"...\",\"password\":\"...\"}"]
+    E --> F[wifi_manager_ap 开热点 ESP32S3_AP]
+    F --> G[web_ws_start HTTP 与 WS]
+    G --> H[手机连接热点]
+    H --> I[浏览器打开 192.168.100.1]
+    I --> J[页面连接 WebSocket /ws]
+    J --> K{用户操作}
+    K -->|扫描| L[网页发送 scan start]
+    L --> M[ws_receive_cb 启动扫描]
+    M --> N[scan_task 扫描周边]
+    N --> O[wifi_scan_cb 组装 wifi_list]
+    O --> P[WS 下发热点列表]
+    P --> Q[网页显示并点选 SSID]
+    K -->|连接| R[网页发送 ssid 与 password]
     Q --> R
-    R --> S["ws_receive_cb 保存 ssid/password
-    置位 APCFG_BIT"]
-    S --> T["ap_wifi_task 收到事件"]
-    T --> U["web_ws_stop() 关闭服务器"]
-    U --> V["wifi_manager_connect(ssid, password)
-    切 STA 连接路由器"]
-    V --> W{"获取到 IP？"}
-    W -->|是| X["回调 WIFI_STATE_CONNECTED
-    main: Wifi connected"]
-    W -->|否| Y["最多重试 6 次
-    日志: connect to the AP fail,retry now"]
+    R --> S[ws_receive_cb 置位 APCFG_BIT]
+    S --> T[ap_wifi_task 收到事件]
+    T --> U[web_ws_stop 关闭服务器]
+    U --> V[wifi_manager_connect 连路由器]
+    V --> W{获取到 IP}
+    W -->|是| X[回调 WIFI_STATE_CONNECTED]
+    W -->|否| Y[最多重试 6 次]
 ```
 
 ## 1.3 模块职责
