@@ -10,6 +10,7 @@ InlayHints:
     BlockEnd: No
 
 Diagnostics:
+    UnusedIncludes: None
     Suppress:
         - unused-parameter
         - unused-variable

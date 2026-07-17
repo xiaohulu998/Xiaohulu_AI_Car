@@ -1,19 +1,32 @@
 #include <stdio.h>
-#include "wifi.h"
+#include "esp_log.h"
+#include "nvs_flash.h"
+#include <string.h>
+#include "ap_Wifi.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
+#define TAG     "main"
+
+
+//wifi状态通知回调函数
+void wifi_state_handle(WIFI_STATE state)
+{
+    if(state == WIFI_STATE_CONNECTED)    //wifi连接成功
+    {
+        ESP_LOGI(TAG,"Wifi connected");
+    }
+    else if(state == WIFI_STATE_CONNECTED)    //wifi连接失败
+    {
+        ESP_LOGI(TAG,"Wifi disconnected");
+    }
+}
 
 void app_main(void)
 {
-    printf("===== ESP32 WiFi 智能配网系统启动 =====\n");
-    printf("流程: 检查NVS → 有WiFi则STA直连 → 无则AP配网\n");
-
-    // 初始化WiFi模块（自动判断AP配网 / STA直连）
-    wifi_conect_init();
-
-    // 主循环由FreeRTOS任务调度接管，此处无需循环
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+  nvs_flash_init();
+  ap_wifi_init(wifi_state_handle);
+  while(1)
+  {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
 }

@@ -109,11 +109,6 @@ void ap_wifi_init(p_wifi_state_callback f)
 }
 
 
-void ap_wifi_connect();
-
-
-
-
 /** wifi扫描完成回调函数，扫描完成弄成json
  * @param num 扫描到的ap个数
  * @param ap_records ap信息
