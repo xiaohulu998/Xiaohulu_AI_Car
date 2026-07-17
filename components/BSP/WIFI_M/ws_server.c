@@ -4,7 +4,7 @@
 
 #include <string.h>
 
-#define TAG     "ws_server"
+#define TAG "ws_server"
 
 //html网页
 static const char* http_html =NULL;
@@ -108,10 +108,6 @@ esp_err_t web_ws_start(ws_cfg_t* cfg)
     httpd_register_uri_handler(sever_handle, &uri_ws);
     return ESP_OK;
 }
-
-
-
-
 
 
 

@@ -1,24 +1,30 @@
 {
-  "C_Cpp.intelliSenseEngine": "default",
-  "idf.extensionActivationMode": "always",
-  "idf.openOcdConfigs": [
-    "board/esp32s3-builtin.cfg"
-  ],
-  "idf.portWin": "COM7",
-  "idf.currentSetup": "D:/Espressif/frameworks/esp-idf-v5.4.4/",
-  "idf.customExtraVars": {
-    "IDF_TARGET": "esp32s3"
-  },
-  "idf.buildJobs": 1,
-  "terminal.integrated.env.windows": {
-    "IDF_BUILD_JOBS": "1"
-  },
-  "clangd.path": "D:\\Espressif\\tools\\esp-clang\\esp-18.1.2_20240912\\esp-clang\\bin\\clangd.exe",
-  "clangd.arguments": [
-    "--background-index",
-    "--query-driver=**",
-    "--compile-commands-dir=d:\\00_Xiaohulu_AI_Car\\Xiaohulu_AI_Car\\build"
-  ],
-  "idf.flashType": "UART",
-  "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.11.2\\python.exe"
-}
+	  "C_Cpp.intelliSenseEngine": "disabled",
+	  "C_Cpp.autocomplete": "disabled",
+	  "C_Cpp.errorSquiggles": "disabled",
+	  "idf.extensionActivationMode": "always",
+	  "idf.openOcdConfigs": [
+	    "board/esp32s3-builtin.cfg"
+	  ],
+	  "idf.portWin": "COM7",
+	  "idf.currentSetup": "D:/Espressif/frameworks/esp-idf-v5.4.4/",
+	  "idf.customExtraVars": {
+	    "IDF_TARGET": "esp32s3"
+	  },
+	  "idf.buildJobs": 1,
+	  "terminal.integrated.env.windows": {
+	    "IDF_BUILD_JOBS": "1"
+	  },
+	  "clangd.path": "D:\\Espressif\\tools\\esp-clang\\esp-18.1.2_20240912\\esp-clang\\bin\\clangd.exe",
+	  "clangd.parameterHints.enabled": false,
+	  "clangd.inlayHints.enabled": false,
+	  "editor.inlayHints.enabled": "off",
+	  "clangd.arguments": [
+	    "--background-index",
+	    "--query-driver=**",
+	    "--compile-commands-dir=${workspaceFolder}/build",
+	    "--header-insertion=never"
+	  ],
+	  "idf.flashType": "UART",
+	  "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.11.2\\python.exe"
+	}
