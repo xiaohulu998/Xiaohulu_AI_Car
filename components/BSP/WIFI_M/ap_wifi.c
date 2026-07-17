@@ -8,6 +8,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/event_groups.h"
 
 
 #define TAG "AP_WIFI"
@@ -17,6 +18,12 @@
 //客户端发过来的密码
 static char current_ssid[32];
 static char current_password[64];
+
+
+// 事件标志组句柄
+static EventGroupHandle_t apcfg_ev;
+//定义事件标志位
+#define APCFG_BIT   (BIT0)
 
 static char* html_code = NULL;
 
@@ -74,7 +81,17 @@ static char* init_web_page_buffer(void)
 */
 static void ap_wifi_task(void* param)
 {
-    
+    EventBits_t ev; 
+    while(1)
+    {
+       //等待事件标志位，读取后清除，等待10s
+        ev = xEventGroupWaitBits(apcfg_ev,APCFG_BIT, pdTRUE, pdFALSE, pdMS_TO_TICKS(10*1000));
+        if(ev & APCFG_BIT)  //bit0位被置1
+        {
+            web_ws_stop();  //停止服务器
+            wifi_manager_connect(current_ssid, current_password);   //连接WIFI
+        }  
+    }
 }
 
 /** wifi功能初始化
@@ -85,8 +102,10 @@ void ap_wifi_init(p_wifi_state_callback f)
 {
     wifi_manager_init(f);  //调用wifi_manager_init初始化wifi
     html_code = init_web_page_buffer(); //加载html网页至内存中
+    apcfg_ev = xEventGroupCreate();    //创建事件标志组
     xTaskCreatePinnedToCore(ap_wifi_task,"apcfg",4096,NULL,3,NULL,1);   //创建freertos任务函数
     
+
 }
 
 
@@ -163,6 +182,7 @@ static void ws_receive_cb (uint8_t* payload, int len)
                 snprintf(current_ssid, sizeof(current_ssid), ssid_value);  //复制ssid值到全局变量
                 snprintf(current_password, sizeof(current_password), password_value);  //复制password值到全局变量
 
+                xEventGroupSetBits(apcfg_ev, APCFG_BIT);   //设置事件标志位
 
                 //此回调函数里面由websocket底层调用，不宜直接调用关闭服务器操作
                 //web_ws_stop();

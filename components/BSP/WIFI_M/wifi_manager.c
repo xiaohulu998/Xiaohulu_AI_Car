@@ -132,7 +132,7 @@ void wifi_manager_init(p_wifi_state_callback f)
     ESP_LOGI(TAG, "wifi_init finished.");
 }
 
-/** 连接wifi
+/** 连接wifi，用sta模式
  * @param ssid
  * @param password
  * @return 成功/失败
