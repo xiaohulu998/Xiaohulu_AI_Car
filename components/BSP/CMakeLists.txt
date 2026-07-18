@@ -31,6 +31,7 @@ set(requires
             spiffs
             vfs
             json
+            mbedtls
                 )
 
 # 注册【BSP组件】到组件列表中, 以便其他组件可以依赖使用
