@@ -21,38 +21,62 @@
 
 ## 1.2 总体流程图
 
-```mermaid
-flowchart TD
-    A[ESP32 启动] --> B[main: app_main]
-    B --> C[nvs_flash_init]
-    C --> D[ap_wifi_init]
-    D --> D1[wifi_manager_init 启动 STA 框架]
-    D --> D2[SPIFFS 加载 apcfg.html]
-    D --> D3[创建事件组与 ap_wifi_task]
-    D1 --> E[ap_wifi_apcfg]
-    D2 --> E
-    D3 --> E
-    E --> F[wifi_manager_ap 开热点 ESP32S3_AP]
-    F --> G[web_ws_start HTTP 与 WS]
-    G --> H[手机连接热点]
-    H --> I[浏览器打开 192.168.100.1]
-    I --> J[页面连接 WebSocket /ws]
-    J --> K{用户操作}
-    K -->|扫描| L[网页发送 scan start]
-    L --> M[ws_receive_cb 启动扫描]
-    M --> N[scan_task 扫描周边]
-    N --> O[wifi_scan_cb 组装 wifi_list]
-    O --> P[WS 下发热点列表]
-    P --> Q[网页显示并点选 SSID]
-    K -->|连接| R[网页发送 ssid 与 password]
-    Q --> R
-    R --> S[ws_receive_cb 置位 APCFG_BIT]
-    S --> T[ap_wifi_task 收到事件]
-    T --> U[web_ws_stop 关闭服务器]
-    U --> V[wifi_manager_connect 连路由器]
-    V --> W{获取到 IP}
-    W -->|是| X[回调 WIFI_STATE_CONNECTED]
-    W -->|否| Y[最多重试 6 次]
+```text
+ESP32 启动
+    |
+    v
+main: app_main()
+    |
+    +--> nvs_flash_init()
+    |
+    +--> ap_wifi_init(wifi_state_handle)
+    |       |
+    |       +--> wifi_manager_init()     // 启动 STA 框架（空 SSID 不自动连）
+    |       +--> SPIFFS 加载 apcfg.html  // /spiffs/apcfg.html → 内存
+    |       +--> 创建事件组 + ap_wifi_task
+    |
+    +--> ap_wifi_apcfg()
+            |
+            +--> wifi_manager_ap()       // APSTA，热点 ESP32S3_AP
+            +--> web_ws_start()          // HTTP:/  +  WS:/ws
+                    |
+                    v
+            手机连接热点 ESP32S3_AP / qwer1234
+                    |
+                    v
+            浏览器打开 http://192.168.100.1
+                    |
+                    v
+            页面建立 WebSocket: /ws
+                    |
+          +---------+---------+
+          |                   |
+          v                   v
+     [扫描 WiFi]          [保存并连接]
+          |                   |
+          v                   v
+  发送 JSON:            发送 JSON:
+  {"scan":"start"}      {"ssid":"...","password":"..."}
+          |                   |
+          v                   v
+  ws_receive_cb         ws_receive_cb
+  → wifi_manager_scan   保存 ssid/password
+          |             置位 APCFG_BIT
+          v                   |
+  scan_task 扫描周边          v
+          |             ap_wifi_task 收到事件
+          v                   |
+  wifi_scan_cb                +--> web_ws_stop()
+  组装 wifi_list              +--> wifi_manager_connect()
+          |                         |
+          v                         v
+  WS 下发列表              获取到 IP ?
+  网页点选 SSID              /        \
+                          是          否
+                           |           |
+                           v           v
+              WIFI_STATE_CONNECTED   最多重试 6 次
+              (Wifi connected)       (connect fail, retry)
 ```
 
 ## 1.3 模块职责
