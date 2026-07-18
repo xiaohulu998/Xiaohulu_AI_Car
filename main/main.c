@@ -40,7 +40,7 @@ void app_main(void)
     // WebSocket JSON 协议见 ap_wifi.c / 参考.json
     ESP_LOGI(TAG, "进入 AP 配网模式");
     ap_wifi_apcfg();
-
+    
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
