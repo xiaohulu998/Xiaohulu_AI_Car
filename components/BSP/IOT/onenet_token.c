@@ -346,50 +346,68 @@ static void calc_hmd(enum sig_method_e method,unsigned char* key,size_t key_len,
 int32_t
 dev_token_generate(char* token, enum sig_method_e method, uint32_t exp_time, const char* product_id, const char* dev_name, const char* access_key)
 {
-    uint8_t  base64_data[64] = { 0 };
-    uint8_t  str_for_sig[64] = { 0 };
-    uint8_t  sign_buf[128]   = { 0 };
+    /* 签名字符串格式: et\nmethod\nproducts/{pid}/devices/{name}\nversion
+     * 设备名稍长时很容易超过 64 字节，旧代码 str_for_sig[64] 会溢出，
+     * 导致 HMAC 错误，OneNET 返回 bad username or password。 */
+    uint8_t  base64_data[128] = { 0 };
+    uint8_t  str_for_sig[256] = { 0 };
+    uint8_t  sign_buf[64]     = { 0 };
     unsigned int base64_data_len = sizeof(base64_data);
-    uint8_t* sig_method_str  = NULL;
+    const char* sig_method_str  = NULL;
     unsigned int sign_len        = 0;
     uint32_t i               = 0;
     char* tmp             = NULL;
+    int ret;
+
+    if (!token || !product_id || !access_key) {
+        return -1;
+    }
 
     sprintf(token, "version=%s", DEV_TOKEN_VERISON_STR);
 
-    if (dev_name) {
+    if (dev_name && dev_name[0] != '\0') {
         sprintf(token + strlen(token), "&res=products%%2F%s%%2Fdevices%%2F%s", product_id, dev_name);
     } else {
         sprintf(token + strlen(token), "&res=products%%2F%s", product_id);
     }
 
-    sprintf(token + strlen(token), "&et=%lu", exp_time);
+    sprintf(token + strlen(token), "&et=%u", (unsigned)exp_time);
 
-    Base64_Decode((const byte*)access_key, strlen(access_key), base64_data, &base64_data_len);
+    ret = Base64_Decode((const byte*)access_key, strlen(access_key), base64_data, &base64_data_len);
+    if (ret != 0 || base64_data_len == 0) {
+        return -2;
+    }
 
     if (SIG_METHOD_MD5 == method) {
-        sig_method_str = (uint8_t*)DEV_TOKEN_SIG_METHOD_MD5;
+        sig_method_str = DEV_TOKEN_SIG_METHOD_MD5;
         sign_len       = 16;
     } else if (SIG_METHOD_SHA1 == method) {
-        sig_method_str = (uint8_t*)DEV_TOKEN_SIG_METHOD_SHA1;
+        sig_method_str = DEV_TOKEN_SIG_METHOD_SHA1;
         sign_len       = 20;
     } else if (SIG_METHOD_SHA256 == method) {
-        sig_method_str = (uint8_t*)DEV_TOKEN_SIG_METHOD_SHA256;
+        sig_method_str = DEV_TOKEN_SIG_METHOD_SHA256;
         sign_len       = 32;
+    } else {
+        return -3;
     }
 
     sprintf(token + strlen(token), "&method=%s", sig_method_str);
-    if (dev_name) {
-        sprintf((char*)str_for_sig, "%lu\n%s\nproducts/%s/devices/%s\n%s", exp_time, sig_method_str, product_id, dev_name, DEV_TOKEN_VERISON_STR);
+    if (dev_name && dev_name[0] != '\0') {
+        sprintf((char*)str_for_sig, "%u\n%s\nproducts/%s/devices/%s\n%s",
+                (unsigned)exp_time, sig_method_str, product_id, dev_name, DEV_TOKEN_VERISON_STR);
     } else {
-        sprintf((char*)str_for_sig, "%lu\n%s\nproducts/%s\n%s", exp_time, sig_method_str, product_id, DEV_TOKEN_VERISON_STR);
+        sprintf((char*)str_for_sig, "%u\n%s\nproducts/%s\n%s",
+                (unsigned)exp_time, sig_method_str, product_id, DEV_TOKEN_VERISON_STR);
     }
 
-    calc_hmd(method,base64_data,base64_data_len,str_for_sig,strlen((char*)str_for_sig),sign_buf);
+    calc_hmd(method, base64_data, base64_data_len, str_for_sig, strlen((char*)str_for_sig), sign_buf);
 
     memset(base64_data, 0, sizeof(base64_data));
     base64_data_len = sizeof(base64_data);
-    Base64_Encode_NoNl(sign_buf, sign_len, base64_data, &base64_data_len);
+    ret = Base64_Encode_NoNl(sign_buf, sign_len, base64_data, &base64_data_len);
+    if (ret != 0) {
+        return -4;
+    }
 
     strcat(token, "&sign=");
     tmp = token + strlen(token);
@@ -434,6 +452,7 @@ dev_token_generate(char* token, enum sig_method_e method, uint32_t exp_time, con
                 break;
         }
     }
+    *tmp = '\0';
 
     return 0;
 }

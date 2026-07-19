@@ -1,3 +1,5 @@
+/*注释掉，后期优化拼接
+//AP智能配网相关
 #include <stdio.h>
 #include <string.h>
 #include "esp_log.h"
@@ -5,9 +7,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ap_wifi.h"
-
-
-#define TAG     "main"
 
 
 //wifi状态通知回调函数
@@ -22,6 +21,7 @@ void wifi_state_handle(WIFI_STATE state)
         ESP_LOGI(TAG,"Wifi disconnected");
     }
 }
+
 
 void app_main(void)
 {
@@ -45,3 +45,63 @@ void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+*/
+
+
+
+#define TAG     "main"
+
+
+//mqtt 相关
+#include "onenet_mqtt.h"
+#include "wifi_manager.h"
+#include <stdio.h>
+#include "esp_log.h"
+#include "nvs_flash.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+
+//事件标志组句柄
+static EventGroupHandle_t wifi_ev = NULL;
+
+#define WIFI_CONECT_BIT (BIT0)
+
+//wifi状态通知回调函数
+void wifi_state_callback(WIFI_STATE state)
+{
+    if(state == WIFI_STATE_CONNECTED)    //wifi连接成功
+    {
+        xEventGroupSetBits(wifi_ev, WIFI_CONECT_BIT);
+
+    }
+}
+
+
+void app_main(void)
+{
+     //nvs初始化
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) 
+    {
+        nvs_flash_erase();
+        nvs_flash_init();
+    }
+    wifi_ev = xEventGroupCreate();
+    wifi_manager_init(wifi_state_callback);
+    wifi_manager_connect("xiaomi17", "qwer1234");
+
+    /* 等 WiFi 连上后只启动一次 MQTT，避免重复 init */
+    EventBits_t ev = xEventGroupWaitBits(wifi_ev, WIFI_CONECT_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+    if (ev & WIFI_CONECT_BIT) {
+        esp_err_t err = onenet_start();
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "onenet_start failed: %s", esp_err_to_name(err));
+        }
+    }
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
