@@ -122,6 +122,23 @@ void ap_wifi_init(p_wifi_state_callback f)
 */
 void wifi_scan_cb(int num, wifi_ap_record_t *ap_record)
 {
+    /*
+    {
+    "wifi_list":[
+        {
+            "ssid":"test1",
+            "rssi":-23,
+            "encrypted":true
+        },
+        {
+            "ssid":"test2",
+            "rssi":-70,
+            "encrypted":true
+        }
+    ]
+}
+    */
+     
     cJSON* root = cJSON_CreateObject();   //创建一个JSON 根对象 {}
     cJSON* wifi_list_js = cJSON_AddArrayToObject(root, "wifi_list"); //在 root 对象里新增数组键值对
     for (int i = 0;i < num; i++)   //遍历ap_records，生成对应的JSON格式
