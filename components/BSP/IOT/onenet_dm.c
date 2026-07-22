@@ -42,8 +42,7 @@ void onenet_dm_init(void) {
   // 配置 LEDC 通道（绑定 GPIO 与定时器）
   ledc_channel_config_t led_channel = {.speed_mode = LEDC_LOW_SPEED_MODE,
                                        .channel = LEDC_CHANNEL_0,
-                                       .timer_sel =
-                                           LEDC_TIMER_0, // 关联上面的定时器0
+                                       .timer_sel = LEDC_TIMER_0, // 关联上面的定时器0
                                        .gpio_num = LED_GPIO_NUM, // LED引脚
                                        .duty = 0, // 初始占空比0（熄灭）
                                        .hpoint = 0};
@@ -77,6 +76,7 @@ void onenet_property_handle(cJSON *property_js) {
     }
   }
   */
+  //从property_js 这个JSON根对象中，查找键名为"params"的子节点
   cJSON *params_js = cJSON_GetObjectItem(property_js, "params");
   if (params_js) {
     cJSON *name_js = params_js->child; // 第一个子节点
@@ -113,7 +113,7 @@ void onenet_property_handle(cJSON *property_js) {
             cJSON_GetNumberValue(cJSON_GetObjectItem(name_js, "Blue"));
         // 写入RBG值，每个灯都一样
         for (int i = 0; i < 3; i++) {
-          ws2812_write(ws2812_handle, i, ws2812_red, ws2812_green, ws2812_blue)
+          ws2812_write(ws2812_handle, i, ws2812_red, ws2812_green, ws2812_blue);
         }
       }
 
