@@ -212,7 +212,7 @@ void onenet_property_ack(const char* id,int code,const char* message)
     cJSON *reply_js = cJSON_CreateObject();    //创建根节点
     cJSON_AddStringToObject(reply_js,"id",id); //字符串子节点
     cJSON_AddNumberToObject(reply_js,"code",code); //整型子节点
-    cJSON_AddStringToObject(reply_js,"message",message); //字符串子节点
+    cJSON_AddStringToObject(reply_js,"msg",message); //字符串子节点
     char* data = cJSON_PrintUnformatted(reply_js);   //将cJSON 对象（cJSON*）序列化为 JSON 字符串；相反：cJSON_Parse()将JSON 字符串转为cJSON 对象
     // 向MQTT主题发布消息
     // s_onenet_client：MQTT客户端句柄
