@@ -61,6 +61,9 @@ void app_main(void)
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "onenet_mqtt.h"
+#include "onenet_dm.h"
+
 
 //事件标志组句柄
 static EventGroupHandle_t wifi_ev = NULL;
@@ -90,6 +93,9 @@ void app_main(void)
     wifi_ev = xEventGroupCreate();
     wifi_manager_init(wifi_state_callback);
     wifi_manager_connect("xiaomi17", "qwer1234");
+
+    //onenet物模型数据初始化
+    onenet_dm_init();
 
     /* 等 WiFi 连上后只启动一次 MQTT，避免重复 init */
     EventBits_t ev = xEventGroupWaitBits(wifi_ev, WIFI_CONECT_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
