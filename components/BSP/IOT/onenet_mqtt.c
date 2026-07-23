@@ -71,7 +71,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         if(strstr(event->topic, "property/set"))  //查找字符串，非0为找到
         {
             //将JSON 字符串，解析成 cJSON 结构体对象，方便代码读取里面的键值
-            cJSON *property_js = cJSON_Parse(event_data); 
+            cJSON *property_js = cJSON_Parse(event -> data);   //修复手误写成event_data
             
             onenet_property_handle(property_js); //调用函数处理下行数据(物模型数据)
             //cJSON_GetObjectItem 获取ID指针

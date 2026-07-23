@@ -136,7 +136,7 @@ cJSON *onenet_property_upload_dm(void) {
 "version": "1.0",
 "params": {
   "Brightness": {
-    "value": "50",  //led_brightness
+    "value": 50,  //led_brightness
     },
   "LightSwitch": {
     "value": ture, //led_LightSwitch
@@ -152,7 +152,7 @@ cJSON *onenet_property_upload_dm(void) {
   cJSON *root = cJSON_CreateObject();                        // 根节点
   cJSON_AddStringToObject(root, "id", "123");                // 子节点
   cJSON_AddStringToObject(root, "version", "1.0");           // 子节点
-  cJSON *params_js = cJSON_AddArrayToObject(root, "params"); // 子节点
+  cJSON *params_js = cJSON_AddObjectToObject(root, "params"); // 子节点  //已修复，这里是Object写成了 Array 
 
   // 往params中填充灯亮度值
   cJSON *Brightness_js = cJSON_AddObjectToObject(params_js, "Brightness");
@@ -167,8 +167,8 @@ cJSON *onenet_property_upload_dm(void) {
 
   cJSON *RGBColor_value_js = cJSON_AddObjectToObject(RGBColor_js, "value");
   cJSON_AddNumberToObject(RGBColor_value_js, "Red", ws2812_red);
-  cJSON_AddNumberToObject(RGBColor_value_js, "Green", ws2812_red);
-  cJSON_AddNumberToObject(RGBColor_value_js, "Blue", ws2812_red);
+  cJSON_AddNumberToObject(RGBColor_value_js, "Green", ws2812_green);
+  cJSON_AddNumberToObject(RGBColor_value_js, "Blue", ws2812_blue);
 
   return root;
 }
