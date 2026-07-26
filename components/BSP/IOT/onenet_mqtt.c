@@ -18,8 +18,10 @@ static esp_mqtt_client_handle_t mqtt_handle = NULL;
 
 //函数前置
 static void onenet_property_ack(const char* id,int code,const char* message);
+static void onenet_handle_property_get(const char *payload, int payload_len);
 void onenet_subscribe(void);
 esp_err_t onenet_post_property_data(const char* data);
+esp_err_t onenet_get_property_data(const char *data);
 
 /**
  * mqtt连接事件处理函数
@@ -34,12 +36,13 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     int msg_id;
 
     switch ((esp_mqtt_event_id_t)event_id) {
-    case MQTT_EVENT_CONNECTED:
+    case MQTT_EVENT_CONNECTED:   //握手成功
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
         onenet_subscribe();  //订阅数据
         
         //为了数据同步，上报数据, 主动把当前最新状态上报给云端
         cJSON* property_js = onenet_property_upload_dm();  //jeson树
+        
         char* data = cJSON_PrintUnformatted(property_js); //将cJSON 节点树转换成一段连续的字符串
         onenet_post_property_data(data); //上报数据给云端
 
@@ -48,40 +51,56 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         cJSON_Delete(property_js);
         break;
 
-    case MQTT_EVENT_DISCONNECTED:
+    case MQTT_EVENT_DISCONNECTED: //连接断开
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
         break;
 
-    case MQTT_EVENT_SUBSCRIBED:
+    case MQTT_EVENT_SUBSCRIBED: //请求得到服务器确认
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
         break;
 
-    case MQTT_EVENT_UNSUBSCRIBED:
+    case MQTT_EVENT_UNSUBSCRIBED: //取消订阅确认
         ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
         break;
 
-    case MQTT_EVENT_PUBLISHED:
+    case MQTT_EVENT_PUBLISHED: //发布的消息收到 PUBAC 日志查看消息是否送达平台
         ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
         break;
 
-    case MQTT_EVENT_DATA:
+    case MQTT_EVENT_DATA: //收到云端下发消息
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
         printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
         printf("DATA=%.*s\r\n", event->data_len, event->data);
-        if(strstr(event->topic, "property/set"))  //查找字符串，非0为找到
         {
-            //将JSON 字符串，解析成 cJSON 结构体对象，方便代码读取里面的键值
-            cJSON *property_js = cJSON_Parse(event -> data);   //修复手误写成event_data
-            
-            onenet_property_handle(property_js); //调用函数处理下行数据(物模型数据)
-            //cJSON_GetObjectItem 获取ID指针
-            cJSON* id_js = cJSON_GetObjectItem(property_js, "id");
-            onenet_property_ack(cJSON_GetStringValue(id_js), 200, "success");   //处理后应答
-            cJSON_Delete(property_js);   //释放 cJSON树
+            /* event->topic / event->data 不一定以 '\0' 结尾，先拷贝再匹配 */
+            char topic[160] = {0};
+            int tlen = event->topic_len;
+            if (tlen >= (int)sizeof(topic)) {
+                tlen = (int)sizeof(topic) - 1;
+            }
+            if (event->topic && tlen > 0) {
+                memcpy(topic, event->topic, tlen);
+            }
+
+            if (strstr(topic, "property/set") && !strstr(topic, "set_reply")) {
+                cJSON *property_js = cJSON_ParseWithLength(event->data, event->data_len);
+                if (property_js) {
+                    onenet_property_handle(property_js);
+                    cJSON *id_js = cJSON_GetObjectItem(property_js, "id");
+                    const char *id = cJSON_GetStringValue(id_js);
+                    onenet_property_ack(id ? id : "0", 200, "success");
+                    cJSON_Delete(property_js);
+                } else {
+                    ESP_LOGE(TAG, "property/set JSON parse failed");
+                }
+            } else if (strstr(topic, "property/get") && !strstr(topic, "get_reply")
+                       && !strstr(topic, "post/reply")) {
+                onenet_handle_property_get(event->data, event->data_len);
+            }
         }
         break;
 
-    case MQTT_EVENT_ERROR:
+    case MQTT_EVENT_ERROR:  //各类异常：tls 失败、连接超时、内存、协议错误
         ESP_LOGE(TAG, "MQTT_EVENT_ERROR");
         if (event->error_handle) {
             ESP_LOGE(TAG, "  error_type=%d", event->error_handle->error_type);
@@ -185,10 +204,19 @@ void onenet_subscribe(void)
     snprintf(topic,sizeof(topic),"$sys/%s/%s/thing/property/post/reply",
         ONENET_PRODUCT_ID,ONENET_DEVICE_NAME);
     esp_mqtt_client_subscribe_single(mqtt_handle,topic,1);  //订阅主题
-    //订阅下行设置属性主题
+    
+    //订阅下行"设置属性"主题
     snprintf(topic,sizeof(topic),"$sys/%s/%s/thing/property/set",
         ONENET_PRODUCT_ID,ONENET_DEVICE_NAME);
     esp_mqtt_client_subscribe_single(mqtt_handle,topic,1);  //订阅主题
+
+    // 订阅下行「获取属性」主题
+    snprintf(topic, sizeof(topic),"$sys/%s/%s/thing/property/get",
+        ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
+    esp_mqtt_client_subscribe_single(mqtt_handle, topic, 1);
+
+
+
 }
 
 /**
@@ -197,7 +225,7 @@ void onenet_subscribe(void)
  * @param message 信息
  * @return mqtt连接参数
  */
-void onenet_property_ack(const char* id,int code,const char* message)
+static void onenet_property_ack(const char* id,int code,const char* message)
 {
    /* 参考json
    {
@@ -239,4 +267,52 @@ esp_err_t onenet_post_property_data(const char* data)
         ONENET_PRODUCT_ID,ONENET_DEVICE_NAME);
     ESP_LOGI(TAG,"Upload topic:%s,payload:%s",topic,data);
     return esp_mqtt_client_publish(mqtt_handle,topic,data,strlen(data),1,0);
+}
+
+/**
+ * 处理 property/get：解析请求 id → 组 get_reply → 发布
+ */
+static void onenet_handle_property_get(const char *payload, int payload_len)
+{
+    cJSON *req_js = cJSON_ParseWithLength(payload, payload_len);
+    if (req_js == NULL) {
+        ESP_LOGE(TAG, "property/get JSON parse failed");
+        return;
+    }
+
+    cJSON *id_js = cJSON_GetObjectItem(req_js, "id");
+    const char *id = cJSON_GetStringValue(id_js);
+
+    cJSON *reply_js = onenet_property_get_reply_dm(id);
+    if (reply_js == NULL) {
+        ESP_LOGE(TAG, "onenet_property_get_reply_dm failed");
+        cJSON_Delete(req_js);
+        return;
+    }
+
+    char *data = cJSON_PrintUnformatted(reply_js);
+    if (data) {
+        onenet_get_property_data(data);
+        cJSON_free(data);
+    }
+
+    cJSON_Delete(reply_js);
+    cJSON_Delete(req_js);
+}
+
+/**
+ * 发布属性获取应答到 get_reply 主题
+ * @param data 已序列化的 get_reply JSON
+ * @return 错误码
+ */
+esp_err_t onenet_get_property_data(const char *data)
+{
+    char topic[128];
+    if (data == NULL || mqtt_handle == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    snprintf(topic, sizeof(topic), "$sys/%s/%s/thing/property/get_reply",
+             ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
+    ESP_LOGI(TAG, "get_reply topic:%s, payload:%s", topic, data);
+    return esp_mqtt_client_publish(mqtt_handle, topic, data, strlen(data), 1, 0);
 }

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "Bash(python -)"
+      "Bash(python -)",
+      "Bash(xxd \"d:/00_Xiaohulu_AI_Car/Xiaohulu_AI_Car/components/BSP/IOT/onenet_mqtt.c\")"
     ]
   }
 }

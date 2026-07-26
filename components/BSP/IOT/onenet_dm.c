@@ -128,7 +128,8 @@ void onenet_property_handle(cJSON *property_js) {
  * @param 无
  * @return cJSON对象，包含所有属性值
  */
-cJSON *onenet_property_upload_dm(void) {
+cJSON *onenet_property_upload_dm(void) 
+{
 
   /* //参考JSON
   {
@@ -169,6 +170,29 @@ cJSON *onenet_property_upload_dm(void) {
   cJSON_AddNumberToObject(RGBColor_value_js, "Red", ws2812_red);
   cJSON_AddNumberToObject(RGBColor_value_js, "Green", ws2812_green);
   cJSON_AddNumberToObject(RGBColor_value_js, "Blue", ws2812_blue);
+
+  return root;
+}
+
+/**
+ * 生成属性获取应答 get_reply 的 cJSON
+ * 形态：{"id":"...","code":200,"msg":"success","data":{属性直接值}}
+ */
+cJSON *onenet_property_get_reply_dm(const char *id)
+{
+  cJSON *root = cJSON_CreateObject();
+  cJSON_AddStringToObject(root, "id", id ? id : "0");
+  cJSON_AddNumberToObject(root, "code", 200);
+  cJSON_AddStringToObject(root, "msg", "success");
+
+  cJSON *data_js = cJSON_AddObjectToObject(root, "data");
+  cJSON_AddNumberToObject(data_js, "Brightness", led_brightness);
+  cJSON_AddBoolToObject(data_js, "LightSwitch", led_LightSwitch);
+
+  cJSON *rgb_js = cJSON_AddObjectToObject(data_js, "RGBColor");
+  cJSON_AddNumberToObject(rgb_js, "Red", ws2812_red);
+  cJSON_AddNumberToObject(rgb_js, "Green", ws2812_green);
+  cJSON_AddNumberToObject(rgb_js, "Blue", ws2812_blue);
 
   return root;
 }

@@ -92,7 +92,7 @@ void app_main(void)
     }
     wifi_ev = xEventGroupCreate();
     wifi_manager_init(wifi_state_callback);
-    wifi_manager_connect("xiaomi17", "qwer1234");
+    wifi_manager_connect("暴富", "qwpo9876");
 
     //onenet物模型数据初始化
     onenet_dm_init();
