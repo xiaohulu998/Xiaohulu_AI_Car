@@ -82,19 +82,25 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                 memcpy(topic, event->topic, tlen);
             }
 
-            if (strstr(topic, "property/set") && !strstr(topic, "set_reply")) {
+            if (strstr(topic, "property/set") && !strstr(topic, "set_reply"))
+             {
                 cJSON *property_js = cJSON_ParseWithLength(event->data, event->data_len);
-                if (property_js) {
+                if (property_js) 
+                {
                     onenet_property_handle(property_js);
                     cJSON *id_js = cJSON_GetObjectItem(property_js, "id");
                     const char *id = cJSON_GetStringValue(id_js);
                     onenet_property_ack(id ? id : "0", 200, "success");
                     cJSON_Delete(property_js);
-                } else {
+                } 
+                else 
+                {
                     ESP_LOGE(TAG, "property/set JSON parse failed");
                 }
-            } else if (strstr(topic, "property/get") && !strstr(topic, "get_reply")
-                       && !strstr(topic, "post/reply")) {
+            } 
+            else if (strstr(topic, "property/get") && !strstr(topic, "get_reply")
+                       && !strstr(topic, "post/reply")) 
+            {
                 onenet_handle_property_get(event->data, event->data_len);
             }
         }
@@ -271,10 +277,11 @@ esp_err_t onenet_post_property_data(const char* data)
 
 /**
  * 处理 property/get：解析请求 id → 组 get_reply → 发布
+ * 通过 event->data 来获取ID
  */
 static void onenet_handle_property_get(const char *payload, int payload_len)
 {
-    cJSON *req_js = cJSON_ParseWithLength(payload, payload_len);
+    cJSON *req_js = cJSON_ParseWithLength(payload, payload_len);   //cJSON\_Parse靠判断字符串的 \0停止符，容易溢出
     if (req_js == NULL) {
         ESP_LOGE(TAG, "property/get JSON parse failed");
         return;

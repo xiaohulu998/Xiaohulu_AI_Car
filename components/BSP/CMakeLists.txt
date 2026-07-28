@@ -39,6 +39,7 @@ set(requires
             mqtt
             esp_event
             esp-tls
+            app_update        
                 )
 
 # 注册【BSP组件】到组件列表中, 以便其他组件可以依赖使用
