@@ -1,6 +1,9 @@
 #ifndef _ONENET_OTA_H_
 #define _ONENET_OTA_H_
 
+#include "esp_err.h"
+
+
 /**
  * 获取应用程序版本号
  * @param 无
@@ -16,5 +19,11 @@ const char* get_app_version(void);
  */
 void set_app_valid(int valid);
 
+/**
+ * 上报版本号
+ * @param 无
+ * @return 错误码
+ */
+esp_err_t onenet_ota_upload_version(void);
 
 #endif

@@ -31,6 +31,7 @@ set(requires
             nvs_flash
             esp_netif
             esp_http_server
+            esp_http_client
             esp_timer
             spiffs
             vfs
@@ -39,7 +40,7 @@ set(requires
             mqtt
             esp_event
             esp-tls
-            app_update        
+            app_update  
                 )
 
 # 注册【BSP组件】到组件列表中, 以便其他组件可以依赖使用

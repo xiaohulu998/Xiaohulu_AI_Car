@@ -18,6 +18,7 @@ static esp_mqtt_client_handle_t mqtt_handle = NULL;
 
 //函数前置
 static void onenet_property_ack(const char* id,int code,const char* message);
+static void onenet_ota_ack(const char* id,int code,const char* message);
 static void onenet_handle_property_get(const char *payload, int payload_len);
 void onenet_subscribe(void);
 esp_err_t onenet_post_property_data(const char* data);
@@ -81,8 +82,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             if (event->topic && tlen > 0) {
                 memcpy(topic, event->topic, tlen);
             }
-
-            if (strstr(topic, "property/set") && !strstr(topic, "set_reply"))
+             
+            // 收到云端下发消息 进行处理并返回属性设置确认
+            if (strstr(topic, "property/set") && !strstr(topic, "set_reply"))   //strstr是模糊匹配，容易误触发，增加&& 
              {
                 cJSON *property_js = cJSON_ParseWithLength(event->data, event->data_len);
                 if (property_js) 
@@ -98,15 +100,39 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                     ESP_LOGE(TAG, "property/set JSON parse failed");
                 }
             } 
+            
+            // 响应property/get 设备属性获取，上报数据
             else if (strstr(topic, "property/get") && !strstr(topic, "get_reply")
                        && !strstr(topic, "post/reply")) 
             {
                 onenet_handle_property_get(event->data, event->data_len);
             }
+            
+            //OTA远程升级,返回属性设置确认
+            else if (strstr(topic, "ota/inform"))
+            {
+                cJSON *ota_js = cJSON_ParseWithLength(event->data, event->data_len);
+                if (ota_js) 
+                {
+                    // 提取 ID
+                    cJSON *id_js = cJSON_GetObjectItem(ota_js, "id");
+                    const char *id = cJSON_GetStringValue(id_js);
+
+                    // 响应回复
+                    onenet_ota_ack(id ? id : "0", 200, "success");
+                    cJSON_Delete(ota_js);
+
+                    // 开始ota升级流程
+                } 
+                else 
+                {
+                    ESP_LOGE(TAG, "ota/inform JSON parse failed");
+                }
+            }
         }
         break;
 
-    case MQTT_EVENT_ERROR:  //各类异常：tls 失败、连接超时、内存、协议错误
+    case MQTT_EVENT_ERROR:  // 各类异常：tls 失败、连接超时、内存、协议错误
         ESP_LOGE(TAG, "MQTT_EVENT_ERROR");
         if (event->error_handle) {
             ESP_LOGE(TAG, "  error_type=%d", event->error_handle->error_type);
@@ -205,20 +231,26 @@ void onenet_subscribe(void)
 {
     //“平台！以后往【这个主题】发消息的时候，请把消息转发给我。”
        char topic[128];
+
     //订阅上报属性回复主题,必须订阅这个主题，平台才会把处理结果推送给你
     //平台处理完成后，会往这个主题下发应答回执（成功 / 失败）
     snprintf(topic,sizeof(topic),"$sys/%s/%s/thing/property/post/reply",
         ONENET_PRODUCT_ID,ONENET_DEVICE_NAME);
     esp_mqtt_client_subscribe_single(mqtt_handle,topic,1);  //订阅主题
     
-    //订阅下行"设置属性"主题
+    //订阅下行 “设置属性” 主题
     snprintf(topic,sizeof(topic),"$sys/%s/%s/thing/property/set",
         ONENET_PRODUCT_ID,ONENET_DEVICE_NAME);
     esp_mqtt_client_subscribe_single(mqtt_handle,topic,1);  //订阅主题
 
-    // 订阅下行「获取属性」主题
+    // 订阅下行 “获取属性” 主题
     snprintf(topic, sizeof(topic),"$sys/%s/%s/thing/property/get",
         ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
+    esp_mqtt_client_subscribe_single(mqtt_handle, topic, 1);
+
+    // 订阅下行 “OTA远程升级通知” 主题
+    snprintf(topic, sizeof(topic),"$sys/%s/%s/ota/inform",
+    ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
     esp_mqtt_client_subscribe_single(mqtt_handle, topic, 1);
 
 
@@ -226,7 +258,7 @@ void onenet_subscribe(void)
 }
 
 /**
- * 返回属性设置确认
+ * onenet下发数据，返回属性设置确认
  * @param code 错误码
  * @param message 信息
  * @return mqtt连接参数
@@ -262,6 +294,49 @@ static void onenet_property_ack(const char* id,int code,const char* message)
 }
 
 /**
+ * OTA远程升级 返回属性设置确认
+ * @param code 错误码
+ * @param message 信息
+ * @return mqtt连接参数
+ */
+static void onenet_ota_ack(const char* id,int code,const char* message)
+{
+   
+   // $sys/{pid}/{device-name}/ota/inform_reply
+    /* 参考json
+   {
+    
+    "id":"123",
+    "code":200,
+    "msg":"xxxx"
+    "data":
+    {
+        “Xxxx”
+    }
+   */
+    char topic[128];   // 存储主题
+    snprintf(topic,sizeof(topic),"$sys/%s/%s/ota/inform_reply",ONENET_PRODUCT_ID,ONENET_DEVICE_NAME); //占位符填充
+
+    cJSON *reply_js = cJSON_CreateObject();    //创建根节点
+    cJSON_AddStringToObject(reply_js,"id",id); //字符串子节点
+    cJSON_AddNumberToObject(reply_js,"code",code); //整型子节点
+    cJSON_AddStringToObject(reply_js,"msg",message); //字符串子节点
+    char* data = cJSON_PrintUnformatted(reply_js);   //将cJSON 对象（cJSON*）序列化为 JSON 字符串；相反：cJSON_Parse()将JSON 字符串转为cJSON 对象
+    // 向MQTT主题发布消息
+    // s_onenet_client：MQTT客户端句柄
+    // topic：目标发布主题字符串
+    // data：要发送的负载
+    // strlen(data)：负载字节长度
+    // qos = 1：QoS1，至少送达一次
+    // retain = 0：不设置保留消息
+    esp_mqtt_client_publish(mqtt_handle,topic,data,strlen(data),1,0); 
+    
+    cJSON_free(data);  //释放字符串
+    cJSON_Delete(reply_js); //释放 cJSON 对象树
+}
+
+
+/**
  * 上报数据
  * @param data 数据
  * @return 错误
@@ -287,9 +362,11 @@ static void onenet_handle_property_get(const char *payload, int payload_len)
         return;
     }
 
+    // 通过前面的DATA 获取ID
     cJSON *id_js = cJSON_GetObjectItem(req_js, "id");
     const char *id = cJSON_GetStringValue(id_js);
 
+    // 生成属性获取应答 get_reply 的 cJSON
     cJSON *reply_js = onenet_property_get_reply_dm(id);
     if (reply_js == NULL) {
         ESP_LOGE(TAG, "onenet_property_get_reply_dm failed");
@@ -297,8 +374,10 @@ static void onenet_handle_property_get(const char *payload, int payload_len)
         return;
     }
 
+    //将cJSON转换成字符串
     char *data = cJSON_PrintUnformatted(reply_js);
     if (data) {
+        //组装格式，并发布属性获取应答到 get_reply 主题
         onenet_get_property_data(data);
         cJSON_free(data);
     }
