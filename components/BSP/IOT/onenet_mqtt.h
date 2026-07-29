@@ -1,0 +1,68 @@
+#ifndef __ONENET_MQTT_H
+#define __ONENET_MQTT_H
+
+#include "esp_err.h"
+#include "onenet_mqtt_key.h"
+
+
+/*秘钥等信息在，onenet_mqtt_key.h文件，未上传github，需自定义
+格式为：
+    // 产品ID
+    #define ONENET_PRODUCT_ID "XXXX"
+
+    // 产品秘钥
+    #define ONENET_PRODUCT_ACCESS_KE "XXXX"
+
+    // 设备名称
+    #define ONENET_DEVICE_NAME "XXXX"
+
+    */
+
+// 产品ID
+#define ONENET_PRODUCT_ID  ONENET_PRODUCT_ID_KEY 
+
+// 产品秘钥
+#define ONENET_PRODUCT_ACCESS_KE  ONENET_PRODUCT_ACCESS_KE_KEY
+
+// 设备名称
+#define ONENET_DEVICE_NAME ONENET_DEVICE_NAME_KEY
+
+
+
+
+// 定义时间戳
+#define TM_EXPIRE_TIME 1889712420
+
+/**
+ * 启动mqtt连接
+ * @param 无
+ * @return 错误码
+ */
+esp_err_t onenet_start(void);
+
+/**
+ * 订阅相关主题，有要订阅的主题可以放在这个函数
+ * @param 无
+ * @return 无
+ */
+void onenet_subscribe(void);
+
+
+/**
+ * 上报数据
+ * @param data 数据
+ * @return 错误
+ */
+esp_err_t onenet_post_property_data(const char* data);
+
+/**
+ * 发布属性获取应答到 get_reply 主题
+ * @param data 已序列化的 get_reply JSON 字符串
+ * @return 错误码
+ */
+esp_err_t onenet_get_property_data(const char *data);
+
+
+
+
+#endif
