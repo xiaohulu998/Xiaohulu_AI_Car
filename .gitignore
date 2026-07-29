@@ -80,8 +80,9 @@ Desktop.ini
 *.workspace # General workspace files, can be from various tools
 *.suo       # Visual Studio Solution User Options
 *.sln.docstates # Visual Studio
+
 # VS Code 缓存
 .vscode/.cache
 .DS_Store
 *.log
-components/BSP/IOT/onenet_mqtt.h
+components/BSP/IOT/onenet_mqtt_key.h

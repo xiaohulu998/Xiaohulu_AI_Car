@@ -5,7 +5,7 @@
 #include "onenet_mqtt_key.h"
 
 
-/*秘钥等信息在，onenet_mqtt_key.h文件，未上传github，需自定义
+/*秘钥等信息在onenet_mqtt_key.h文件，未上传github，需自定义
 格式为：
     // 产品ID
     #define ONENET_PRODUCT_ID "XXXX"
