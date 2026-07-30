@@ -185,9 +185,13 @@ static esp_err_t onenet_ota_http_connect(const char* url, esp_http_client_method
 
     char* token =(char*)malloc(256); //在堆上申请地址
     memset(token,0, 256);  
-    dev_token_generate(token, SIG_METHOD_SHA256, TM_EXPIRE_TIME,
-                                   ONENET_PRODUCT_ID, ONENET_DEVICE_NAME,
-                                   ONENET_PRODUCT_ACCESS_KE);
+    /*dev_token_generate(token, SIG_METHOD_SHA256, TM_EXPIRE_TIME, 
+                                   ONENET_PRODUCT_ID, ONENET_DEVICE_NAME, 
+                                   ONENET_PRODUCT_ACCESS_KE); */
+  
+    //使用用户鉴权
+    user_token_generate(token, SIG_METHOD_SHA256, TM_EXPIRE_TIME,
+                    ONENET_USER_ID, ONENET_USER_ACCESS_KE);
 
     esp_http_client_config_t config = {
         .url = url,
@@ -236,7 +240,7 @@ static esp_err_t onenet_ota_http_connect(const char* url, esp_http_client_method
     else 
     {
         // 网络层面失败，连服务器都没连上
-        ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));  //把数字错误码转换成可读字符串。
+        ESP_LOGE(TAG, "HTTP POST 请求失败: %s", esp_err_to_name(err));  //把数字错误码转换成可读字符串。
     }
     
     //清理操作
@@ -263,7 +267,7 @@ esp_err_t onenet_ota_upload_version(void)
     char version[128];
     const char *app_version = get_app_version();  //获取app版本号
     //生成消息体内容（版本号)
-    snprintf(version, sizeof(version), "{\"s_version\":\"%s\", \"f_version\": \"app_version\"}", app_version, app_version ); //  \转义，代表字符串内部内容，填充字符串的值
+    snprintf(version, sizeof(version), "{\"s_version\":\"%s\", \"f_version\": \"%s\"}", app_version, app_version ); //  \转义，代表字符串内部内容，填充字符串的值
     
     if(ESP_OK == onenet_ota_http_connect(url, HTTP_METHOD_POST, version))
     {
@@ -278,7 +282,7 @@ esp_err_t onenet_ota_upload_version(void)
         */
         if(root)
         {
-            cJSON* code_js = cJSON_GetObjectItem(root," code");
+            cJSON* code_js = cJSON_GetObjectItem(root,"code");
             if(code_js && cJSON_GetNumberValue(code_js) == 0)
             {
                ret = ESP_OK;
@@ -289,7 +293,7 @@ esp_err_t onenet_ota_upload_version(void)
      }
     if(ret != ESP_OK)
     {
-        ESP_LOGI(TAG, "上报版本号失败");
+        ESP_LOGE(TAG, "上报版本号失败");
     }
     return ret;
 }
@@ -357,7 +361,7 @@ esp_err_t onenet_ota_check_task(const char* type,const char* version)
             }
             else 
             {
-            ESP_LOGI(TAG, "检测 OTA升级失败......");
+            ESP_LOGE(TAG, "检测 OTA升级失败......");
             }
             cJSON_Delete(root);
        }
@@ -407,8 +411,8 @@ esp_err_t onenet_ota_upload_status(int tid, int step)
         */
         if(root)
         {
-            cJSON* code_js = cJSON_GetObjectItem(root," code");
-            if(code_js && cJSON_GetStringValue(code_js) == 0)
+            cJSON* code_js = cJSON_GetObjectItem(root,"code");
+            if(code_js && cJSON_GetNumberValue(code_js) == 0)
             {
                ret = ESP_OK;
             }
@@ -417,7 +421,7 @@ esp_err_t onenet_ota_upload_status(int tid, int step)
      }
     if(ret != ESP_OK)
     {
-        ESP_LOGI(TAG, "上报版本号失败");
+        ESP_LOGE(TAG, "上报升级进度失败");
     }
     return ret;
 }

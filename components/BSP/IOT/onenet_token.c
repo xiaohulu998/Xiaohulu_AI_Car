@@ -337,6 +337,7 @@ static void calc_hmd(enum sig_method_e method,unsigned char* key,size_t key_len,
 
 #define DEV_TOKEN_LEN 256
 #define DEV_TOKEN_VERISON_STR "2018-10-31"
+#define USER_TOKEN_VERSION_STR "2022-05-01"
 
 #define DEV_TOKEN_SIG_METHOD_MD5 "md5"
 #define DEV_TOKEN_SIG_METHOD_SHA1 "sha1"
@@ -399,6 +400,108 @@ dev_token_generate(char* token, enum sig_method_e method, uint32_t exp_time, con
         sprintf((char*)str_for_sig, "%u\n%s\nproducts/%s\n%s",
                 (unsigned)exp_time, sig_method_str, product_id, DEV_TOKEN_VERISON_STR);
     }
+
+    calc_hmd(method, base64_data, base64_data_len, str_for_sig, strlen((char*)str_for_sig), sign_buf);
+
+    memset(base64_data, 0, sizeof(base64_data));
+    base64_data_len = sizeof(base64_data);
+    ret = Base64_Encode_NoNl(sign_buf, sign_len, base64_data, &base64_data_len);
+    if (ret != 0) {
+        return -4;
+    }
+
+    strcat(token, "&sign=");
+    tmp = token + strlen(token);
+
+    for (i = 0; i < base64_data_len; i++) {
+        switch (base64_data[i]) {
+            case '+':
+                strcat(tmp, "%2B");
+                tmp += 3;
+                break;
+            case ' ':
+                strcat(tmp, "%20");
+                tmp += 3;
+                break;
+            case '/':
+                strcat(tmp, "%2F");
+                tmp += 3;
+                break;
+            case '?':
+                strcat(tmp, "%3F");
+                tmp += 3;
+                break;
+            case '%':
+                strcat(tmp, "%25");
+                tmp += 3;
+                break;
+            case '#':
+                strcat(tmp, "%23");
+                tmp += 3;
+                break;
+            case '&':
+                strcat(tmp, "%26");
+                tmp += 3;
+                break;
+            case '=':
+                strcat(tmp, "%3D");
+                tmp += 3;
+                break;
+            default:
+                *tmp = base64_data[i];
+                tmp += 1;
+                break;
+        }
+    }
+    *tmp = '\0';
+
+    return 0;
+}
+
+// 计算用户级 token，用法和 dev_token_generate 一样简单
+int32_t
+user_token_generate(char* token, enum sig_method_e method, uint32_t exp_time,
+                    const char* user_id, const char* access_key)
+{
+    uint8_t  base64_data[128] = { 0 };
+    uint8_t  str_for_sig[256] = { 0 };
+    uint8_t  sign_buf[64]     = { 0 };
+    unsigned int base64_data_len = sizeof(base64_data);
+    const char* sig_method_str  = NULL;
+    unsigned int sign_len        = 0;
+    uint32_t i               = 0;
+    char* tmp             = NULL;
+    int ret;
+
+    if (!token || !user_id || !access_key) {
+        return -1;
+    }
+
+    sprintf(token, "version=%s", USER_TOKEN_VERSION_STR);
+    sprintf(token + strlen(token), "&res=userid%%2F%s", user_id);
+    sprintf(token + strlen(token), "&et=%u", (unsigned)exp_time);
+
+    ret = Base64_Decode((const byte*)access_key, strlen(access_key), base64_data, &base64_data_len);
+    if (ret != 0 || base64_data_len == 0) {
+        return -2;
+    }
+
+    if (SIG_METHOD_MD5 == method) {
+        sig_method_str = DEV_TOKEN_SIG_METHOD_MD5;
+        sign_len       = 16;
+    } else if (SIG_METHOD_SHA1 == method) {
+        sig_method_str = DEV_TOKEN_SIG_METHOD_SHA1;
+        sign_len       = 20;
+    } else if (SIG_METHOD_SHA256 == method) {
+        sig_method_str = DEV_TOKEN_SIG_METHOD_SHA256;
+        sign_len       = 32;
+    } else {
+        return -3;
+    }
+
+    sprintf(token + strlen(token), "&method=%s", sig_method_str);
+    sprintf((char*)str_for_sig, "%u\n%s\nuserid/%s\n%s",
+            (unsigned)exp_time, sig_method_str, user_id, USER_TOKEN_VERSION_STR);
 
     calc_hmd(method, base64_data, base64_data_len, str_for_sig, strlen((char*)str_for_sig), sign_buf);
 

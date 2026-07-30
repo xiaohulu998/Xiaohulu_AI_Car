@@ -29,9 +29,23 @@ enum sig_method_e
     SIG_METHOD_SHA256
 };
 
-//计算onenet  设备token
+/**
+ * 生成产品/设备级 token
+ * res:
+ *   - 有设备名: products/{product_id}/devices/{dev_name}  (MQTT 设备接入)
+ *   - 无设备名: products/{product_id}                    (HTTP 产品鉴权，fuse-ota 可用)
+ */
 int32_t
-dev_token_generate(char* token, enum sig_method_e method, uint32_t exp_time, const char* product_id, const char* dev_name, const char* access_key);
+dev_token_generate(char* token, enum sig_method_e method, uint32_t exp_time,
+                   const char* product_id, const char* dev_name, const char* access_key);
+
+/**
+ * 生成用户级 token（HTTP OpenAPI / fuse-ota 用户鉴权）
+ * res: userid/{user_id}
+ */
+int32_t
+user_token_generate(char* token, enum sig_method_e method, uint32_t exp_time,
+                    const char* user_id, const char* access_key);
 
 
 #endif
