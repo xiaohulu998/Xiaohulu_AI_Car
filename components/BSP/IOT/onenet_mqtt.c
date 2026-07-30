@@ -257,7 +257,7 @@ void onenet_subscribe(void)
         ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
     esp_mqtt_client_subscribe_single(mqtt_handle, topic, 1);
 
-    // 订阅下行 “OTA远程升级通知” 主题
+    // 订阅下行 “OTA远程升级通知” 主题$sys/{pid}/{device-name}/ota/inform
     snprintf(topic, sizeof(topic),"$sys/%s/%s/ota/inform",
     ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
     esp_mqtt_client_subscribe_single(mqtt_handle, topic, 1);

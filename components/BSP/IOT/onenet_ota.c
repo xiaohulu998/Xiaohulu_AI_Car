@@ -32,9 +32,9 @@ static char target_version[32] = {0};
 //OTA任务唯一ID
 static int task_id = 0;
 
-//OTA全局标志位
-float ota_is_running = true;
 
+//ota任务是否在运行
+static bool ota_is_running = false;
 
 /**
  * http事件回调函数
@@ -444,10 +444,9 @@ esp_err_t onenet_ota_init_cb(esp_http_client_handle_t http_client)
     host:iot-api.heclouds.com  
     */
     static char token[256];
-    memset(token,0, 256);  
-    dev_token_generate(token, SIG_METHOD_SHA256, TM_EXPIRE_TIME,
-                                   ONENET_PRODUCT_ID, ONENET_DEVICE_NAME,
-                                   ONENET_PRODUCT_ACCESS_KE);
+    memset(token,0, 256);
+    user_token_generate(token, SIG_METHOD_SHA256, TM_EXPIRE_TIME,
+                    ONENET_USER_ID, ONENET_USER_ACCESS_KE);
     // POST
     //设置发送请求头
     esp_http_client_set_method(http_client, HTTP_METHOD_GET);   //模式
