@@ -26,4 +26,12 @@ void set_app_valid(int valid);
  */
 esp_err_t onenet_ota_upload_version(void);
 
+/**
+ * 启动onenet ota升级流程
+ * @param 无
+ * @return 无
+ */
+void onenet_ota_start();
+
+
 #endif

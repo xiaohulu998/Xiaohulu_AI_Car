@@ -8,6 +8,7 @@
 #include "mqtt_client.h"
 #include "onenet_token.h"
 #include "onenet_dm.h"
+#include "onenet_ota.h"
 
 #define TAG "ONENET_MQTT"
 
@@ -46,6 +47,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         
         char* data = cJSON_PrintUnformatted(property_js); //将cJSON 节点树转换成一段连续的字符串
         onenet_post_property_data(data); //上报数据给云端
+
+        //上报一下设备的版本号
+        onenet_ota_upload_version();
+
+        // 设置当前app程序为合法
+        set_app_valid(true);
 
         //释放
         cJSON_free(data);
@@ -123,6 +130,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                     cJSON_Delete(ota_js);
 
                     // 开始ota升级流程
+                    onenet_ota_start();
+
                 } 
                 else 
                 {
