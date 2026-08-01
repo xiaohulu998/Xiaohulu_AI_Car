@@ -14,6 +14,7 @@ set(src_dirs
             WIFI_M
             IOT
             WS2812
+            AUDIO
             )
 
 # 对外暴露头文件目录，其他文件 #include "XX.h" 可直接找到 BSP/XX/XX.h
@@ -23,6 +24,7 @@ set(include_dirs
             HTML
             IOT
             WS2812
+            AUDIO
             )
 # 当前BSP组件依赖官方组件目录
 set(requires
