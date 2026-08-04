@@ -12,7 +12,10 @@
 
 #define TAG "AUDIO"
 
-// 初始化音频配置
+/** 初始化音频设置
+ * @param 无
+ * @return 无
+ */
 void start_audio(void)
 {
     //初始化喇叭
@@ -24,7 +27,10 @@ void start_audio(void)
 }
 
 
-// 开始录音
+/** 开始录音
+ * @param rec_time 录音时间
+ * @return 无
+ */
 void start_record(uint32_t rec_time)
 {
     int flash_wr_size = 0;
@@ -66,7 +72,10 @@ void start_record(uint32_t rec_time)
     fclose(f);
 }
 
-//开始播放声音
+/** 开始录音
+ * @param rec_time 录音时间
+ * @return 无
+ */
 void start_play(void)
 {
     const size_t write_size_byte = 8192;

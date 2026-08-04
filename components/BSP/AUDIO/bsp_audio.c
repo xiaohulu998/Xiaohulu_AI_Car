@@ -47,6 +47,7 @@ void init_speaker(gpio_num_t bclk,gpio_num_t ws,gpio_num_t sd,uint32_t sample_ra
     i2s_tx_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_LEFT;  //手动切换到左声道
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_handle, &i2s_tx_cfg));  //设置配置
     ESP_ERROR_CHECK(i2s_channel_enable(tx_handle));  //使能
+    ESP_LOGI(TAG, "喇叭配置成功......");
 }
 
 
@@ -125,8 +126,6 @@ void init_microphone(gpio_num_t bclk,gpio_num_t ws,gpio_num_t sd,uint32_t sample
 }
 
 
-
-
 /** 音频输出
  * @param data 16位pcm数据
  * @param samples 写入的数据长度，单位（字）
@@ -139,6 +138,7 @@ int audio_write(const int16_t* data, int samples)
     bytes_write >>= 1; //右移一位高位补0，等同于除以2
     return bytes_write;
 }
+
 
 /** 录音读取
  * @param data 16位pcm数据

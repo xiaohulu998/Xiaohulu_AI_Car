@@ -13,13 +13,12 @@
 // 使用 __has_include 避免在静态分析时因文件不可用导致错误
 #if defined(__has_include)
 #  if __has_include("config.h")
-#    include "board/config.h"
+#    include "BSP/BOARDS/config.h"
 #  endif
 #else
 /* __has_include not available; rely on build system to provide config.h */
 #endif
-
-// 如果没有提供 BOARD 层的 MOTOR_* 定义，提供默认值以便本文件在不同环境下也能编译
+// 如果没有提供 BOARD 层的定义，提供默认值以便本文件在不同环境下也能编译
 
 
 //I2S 主时钟

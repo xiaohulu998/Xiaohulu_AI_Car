@@ -1,0 +1,45 @@
+components/
+├── BSP/
+│   ├── CMakeLists.txt
+│   ├── include/
+│   │   ├── board_def.h           ← config.h + 散落 GPIO 宏
+│   │   ├── bsp_board.h           ← 新增：系统初始化
+│   │   ├── bsp_audio.h           ← audio.h
+│   │   ├── bsp_ws2812.h          ← led_ws2812.h
+│   │   ├── bsp_motor.h           ← 新建（预留）
+│   │   ├── bsp_sensor.h          ← 新建（预留）
+│   │   └── bsp_nvs.h             ← 新增：NVS 初始化
+│   └── src/
+│       ├── bsp_board.c           ← 新增
+│       ├── bsp_audio.c           ← audio.c
+│       ├── bsp_ws2812.c          ← led_ws2812.c
+│       ├── bsp_motor.c           ← 新建（预留）
+│       ├── bsp_sensor.c          ← 新建（预留）
+│       └── bsp_nvs.c             ← 新增
+│
+└── Middlewares/
+    ├── CMakeLists.txt
+    ├── include/
+    │   ├── audio_player.h        ← audio_user.c（播放部分）
+    │   ├── audio_record.h        ← audio_user.c（录音部分）
+    │   ├── wifi_manager.h        ← wifi_manager.h + ap_wifi.h + ws_server.h
+    │   ├── mqtt_onenet.h         ← 4 个 onenet_*.h 合并
+    │   ├── car_action.h          ← 新建（预留）
+    │   ├── storage_spiffs.h      ← 新增
+    │   └── utils.h               ← 新增
+    ├── src/
+    │   ├── audio/
+    │   │   ├── audio_player.c    ← audio_user.c 的 start_play
+    │   │   └── audio_record.c    ← audio_user.c 的 start_record
+    │   ├── car/
+    │   │   └── car_action.c      ← 新建（预留）
+    │   ├── network/
+    │   │   ├── wifi_manager.c    ← wifi_manager.c + ap_wifi.c + ws_server.c
+    │   │   └── mqtt_onenet.c     ← onenet_mqtt.c + dm.c + token.c + ota.c
+    │   ├── storage/
+    │   │   └── storage_spiffs.c  ← 各文件 SPIFFS 操作收敛
+    │   └── utils/
+    │       └── utils.c           ← 通用工具
+    └── thirdparty/
+        ├── cjson/
+        └── mbedtls_wrapper/      ← Base64 + HMAC 从 onenet_token.c 抽离
