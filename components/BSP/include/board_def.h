@@ -1,6 +1,6 @@
 /**
 * 全局唯一硬件引脚宏定义
- */
+*/
 
 #ifndef _BOARD_DEF_H_
 #define _BOARD_DEF_H_
