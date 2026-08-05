@@ -17,6 +17,8 @@
 #include "esp_event.h"
 #include "esp_spiffs.h"
 #include "esp_http_server.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 #include "cJSON.h"
 
 #include "freertos/FreeRTOS.h"
@@ -52,6 +54,48 @@ static const char *TAG_WS       = "ws_server";
 
 /* 事件标志位 */
 #define APCFG_BIT           (BIT0)
+
+/* NVS 命名空间和键名 */
+#define WIFI_NVS_NAMESPACE  "wifi_cfg"
+#define WIFI_NVS_KEY_SSID   "ssid"
+#define WIFI_NVS_KEY_PSWD   "password"
+
+/**
+ * @brief  从 NVS 读取保存的 WiFi 账号密码
+ * @param  ssid_out     读取到的 SSID（至少 32 字节）
+ * @param  password_out 读取到的密码（至少 64 字节）
+ * @return true 读取成功，false 没有保存过或读取失败
+ */
+static bool wifi_nvs_load_credentials(char *ssid_out, char *password_out)
+{
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open(WIFI_NVS_NAMESPACE, NVS_READONLY, &handle);
+    if (err != ESP_OK) return false;
+
+    size_t len = 32;
+    err = nvs_get_str(handle, WIFI_NVS_KEY_SSID, ssid_out, &len);
+    if (err != ESP_OK) { nvs_close(handle); return false; }
+
+    len = 64;
+    err = nvs_get_str(handle, WIFI_NVS_KEY_PSWD, password_out, &len);
+    nvs_close(handle);
+    return (err == ESP_OK);
+}
+
+/**
+ * @brief  保存 WiFi 账号密码到 NVS
+ */
+static void wifi_nvs_save_credentials(const char *ssid, const char *password)
+{
+    nvs_handle_t handle;
+    if (nvs_open(WIFI_NVS_NAMESPACE, NVS_READWRITE, &handle) == ESP_OK) 
+    {
+        nvs_set_str(handle, WIFI_NVS_KEY_SSID, ssid);
+        nvs_set_str(handle, WIFI_NVS_KEY_PSWD, password);
+        nvs_commit(handle);
+        nvs_close(handle);
+    }
+}
 
 /* ================================================================
  *  1.WiFi 驱动管理
@@ -90,7 +134,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
             break;
         }
         case WIFI_EVENT_STA_CONNECTED: // WIFI连上路由器后，触发此事件
-            ESP_LOGI(TAG_WIFI, "Connected to AP");
+            ESP_LOGI(TAG_WIFI, "已连接到 AP");
             break;
         case WIFI_EVENT_STA_DISCONNECTED: // WIFI从路由器断开连接后触发此事件
             if (is_sta_connected) 
@@ -104,14 +148,19 @@ static void event_handler(void *arg, esp_event_base_t event_base,
                 esp_wifi_get_mode(&mode);
                 if (mode == WIFI_MODE_STA) esp_wifi_connect(); // 继续重连
                 sta_connect_count++;
+                ESP_LOGI(TAG_WIFI, "STA 已断开，重试中...");
             }
-            ESP_LOGI(TAG_WIFI, "STA disconnected, retrying...");
+            else
+            {
+                ESP_LOGW(TAG_WIFI, "STA 重连 %d 次均失败，进入 AP 配网模式", MAX_CONNECT_RETRY);
+                wifi_apcfg_start();   // 回退到网页配网
+            }
             break;
         case WIFI_EVENT_AP_STACONNECTED: // AP连接
-            ESP_LOGI(TAG_WIFI, "STA device connected to AP");
+            ESP_LOGI(TAG_WIFI, "STA 设备已连接到 AP");
             break;
         case WIFI_EVENT_AP_STADISCONNECTED: // AP断开连接
-            ESP_LOGI(TAG_WIFI, "STA device disconnected from AP");
+            ESP_LOGI(TAG_WIFI, "STA 设备已从 AP 断开");
             break;
         default: // 都不符合情况，跳出
             break;
@@ -122,7 +171,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         switch (event_id)
         {
             case IP_EVENT_STA_GOT_IP: // 只有获取到路由器分配的IP，才认为是连上了路由器
-                ESP_LOGI(TAG_WIFI, "Get ip address");
+                ESP_LOGI(TAG_WIFI, "获取到 IP 地址");
                 is_sta_connected = true;
                 if (wifi_state_cb)
                     wifi_state_cb(WIFI_STATE_CONNECTED);
@@ -165,7 +214,7 @@ void wifi_manager_init(p_wifi_state_callback f)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA)); // 设置工作模式为STA
     ESP_ERROR_CHECK(esp_wifi_start()); // 启动WIFI
 
-    ESP_LOGI(TAG_WIFI, "wifi_manager init finished");
+    ESP_LOGI(TAG_WIFI, "wifi_manager 初始化完成");
 }
 
 /**
@@ -247,9 +296,9 @@ esp_err_t wifi_manager_ap(void)
     esp_err_t err = esp_wifi_start();
     if (err == ESP_OK) 
     {
-        ESP_LOGI(TAG_WIFI, "AP started: SSID=%s IP=192.168.100.1", WIFI_AP_SSID);
+        ESP_LOGI(TAG_WIFI, "AP 已启动: SSID=%s IP=192.168.100.1", WIFI_AP_SSID);
     } else {
-        ESP_LOGE(TAG_WIFI, "AP start failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG_WIFI, "AP 启动失败: %s", esp_err_to_name(err));
     }
     return err;
 }
@@ -321,7 +370,7 @@ static char *load_html_from_spiffs(void)
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
     if (ret != ESP_OK) 
     {
-        ESP_LOGE(TAG_APCFG, "SPIFFS mount failed: %s (partition html 是否已烧录？)",
+        ESP_LOGE(TAG_APCFG, "SPIFFS 挂载失败: %s (partition html 是否已烧录？)",
                  esp_err_to_name(ret));
         return NULL;
     }
@@ -332,7 +381,7 @@ static char *load_html_from_spiffs(void)
         ESP_LOGE(TAG_APCFG, "apcfg.html没有找到...... 路径=%s", HTML_PATH);
         return NULL;
     }
-    ESP_LOGI(TAG_APCFG, "apcfg.html size=%ld", (long)st.st_size);
+    ESP_LOGI(TAG_APCFG, "apcfg.html 大小=%ld", (long)st.st_size);
 
     char *buf = (char *)malloc(st.st_size + 1);  //堆上分配内存，存储html网页 +1避免字符串/0
     if (!buf) return NULL;
@@ -444,6 +493,9 @@ static void ws_receive_cb(uint8_t *payload, int len)
                 snprintf(current_ssid, sizeof(current_ssid), "%s", ssid_value);  //复制ssid值到全局变量
                 snprintf(current_password, sizeof(current_password), "%s", password_value);  //复制password值到全局变量
 
+                /* 持久化保存，下次启动优先直连 */
+                wifi_nvs_save_credentials(ssid_value, password_value);
+
                 xEventGroupSetBits(apcfg_ev, APCFG_BIT);   //设置事件标志位
 
                 //此回调函数里面由websocket底层调用，不宜直接调用关闭服务器操作
@@ -486,6 +538,19 @@ void wifi_apcfg_init(p_wifi_state_callback f)
     html_code = load_html_from_spiffs(); //加载html网页至内存中
     apcfg_ev = xEventGroupCreate();    //创建事件标志组
     xTaskCreatePinnedToCore(apcfg_task,"apcfg",4096,NULL,3,NULL,1);   //创建freertos任务函数
+
+    /* 优先尝试用 NVS 中保存的密码直连，没有则进入 AP 配网 */
+    char saved_ssid[32] = {0};
+    char saved_pswd[64] = {0};
+    if (wifi_nvs_load_credentials(saved_ssid, saved_pswd)) 
+    {
+        ESP_LOGI(TAG_APCFG, "发现已保存的 WiFi: %s，尝试直连", saved_ssid);
+        wifi_manager_connect(saved_ssid, saved_pswd);
+    } else 
+    {
+        ESP_LOGI(TAG_APCFG, "无保存的 WiFi 密码，进入 AP 配网模式");
+        wifi_apcfg_start();
+    }
 }
 
 /**
@@ -495,7 +560,7 @@ void wifi_apcfg_start(void)
 {
     if (html_code == NULL)
     {
-        ESP_LOGE(TAG_APCFG, "html_code is NULL, 网页未加载，配网页面将无法显示");
+        ESP_LOGE(TAG_APCFG, "html_code 为空，网页未加载，配网页面将无法显示");
     }
     wifi_manager_ap();   //调用函数设置成AP模式
     ws_cfg_t ws_cfg ={
@@ -504,7 +569,7 @@ void wifi_apcfg_start(void)
     };
     if (ws_server_start(&ws_cfg) != ESP_OK)
     {
-        ESP_LOGE(TAG_APCFG, "ws_server_start failed");
+        ESP_LOGE(TAG_APCFG, "ws_server 启动失败");
     }
 }
 
@@ -580,7 +645,7 @@ esp_err_t ws_server_start(ws_cfg_t *cfg)
 {
     if (!cfg) return ESP_FAIL;
     if (s_server_handle) {
-        ESP_LOGW(TAG_WS, "HTTP server already running");
+        ESP_LOGW(TAG_WS, "HTTP server 已在运行");
         return ESP_OK;
     }
 
@@ -592,7 +657,7 @@ esp_err_t ws_server_start(ws_cfg_t *cfg)
 
     esp_err_t err = httpd_start(&s_server_handle, &http_cfg);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG_WS, "httpd_start failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG_WS, "httpd 启动失败: %s", esp_err_to_name(err));
         s_server_handle = NULL;
         return err;
     }
@@ -616,7 +681,7 @@ esp_err_t ws_server_start(ws_cfg_t *cfg)
     };
     httpd_register_uri_handler(s_server_handle, &uri_ws);
 
-    ESP_LOGI(TAG_WS, "HTTP+WS started on port %d", http_cfg.server_port);
+    ESP_LOGI(TAG_WS, "HTTP+WS 已启动，端口 %d", http_cfg.server_port);
     return ESP_OK;
 }
 
@@ -629,7 +694,7 @@ esp_err_t ws_server_stop(void)
     if (s_server_handle) {
         httpd_stop(s_server_handle);
         s_server_handle = NULL;
-        ESP_LOGI(TAG_WS, "HTTP+WS server stopped");
+        ESP_LOGI(TAG_WS, "HTTP+WS server 已停止");
     }
     return ESP_OK;
 }
