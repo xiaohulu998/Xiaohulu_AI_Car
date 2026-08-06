@@ -17,8 +17,6 @@
 #include "esp_event.h"
 #include "esp_spiffs.h"
 #include "esp_http_server.h"
-#include "nvs_flash.h"
-#include "nvs.h"
 #include "cJSON.h"
 
 #include "freertos/FreeRTOS.h"
@@ -54,48 +52,6 @@ static const char *TAG_WS       = "ws_server";
 
 /* 事件标志位 */
 #define APCFG_BIT           (BIT0)
-
-/* NVS 命名空间和键名 */
-#define WIFI_NVS_NAMESPACE  "wifi_cfg"
-#define WIFI_NVS_KEY_SSID   "ssid"
-#define WIFI_NVS_KEY_PSWD   "password"
-
-/**
- * @brief  从 NVS 读取保存的 WiFi 账号密码
- * @param  ssid_out     读取到的 SSID（至少 32 字节）
- * @param  password_out 读取到的密码（至少 64 字节）
- * @return true 读取成功，false 没有保存过或读取失败
- */
-static bool wifi_nvs_load_credentials(char *ssid_out, char *password_out)
-{
-    nvs_handle_t handle;
-    esp_err_t err = nvs_open(WIFI_NVS_NAMESPACE, NVS_READONLY, &handle);
-    if (err != ESP_OK) return false;
-
-    size_t len = 32;
-    err = nvs_get_str(handle, WIFI_NVS_KEY_SSID, ssid_out, &len);
-    if (err != ESP_OK) { nvs_close(handle); return false; }
-
-    len = 64;
-    err = nvs_get_str(handle, WIFI_NVS_KEY_PSWD, password_out, &len);
-    nvs_close(handle);
-    return (err == ESP_OK);
-}
-
-/**
- * @brief  保存 WiFi 账号密码到 NVS
- */
-static void wifi_nvs_save_credentials(const char *ssid, const char *password)
-{
-    nvs_handle_t handle;
-    if (nvs_open(WIFI_NVS_NAMESPACE, NVS_READWRITE, &handle) == ESP_OK) 
-    {
-        nvs_set_str(handle, WIFI_NVS_KEY_SSID, ssid);
-        nvs_set_str(handle, WIFI_NVS_KEY_PSWD, password);
-        nvs_commit(handle);
-        nvs_close(handle);
-    }
-}
 
 /* ================================================================
  *  1.WiFi 驱动管理
@@ -198,6 +154,9 @@ void wifi_manager_init(p_wifi_state_callback f)
     // 初始化WIFI
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT(); // 使用默认值赋值
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    /* 开启 WiFi 配置 NVS 持久化，之后 esp_wifi_set_config 自动保存，重启后自动恢复 */
+    esp_wifi_set_storage(WIFI_STORAGE_FLASH);
 
     // 注册事件
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
@@ -493,9 +452,6 @@ static void ws_receive_cb(uint8_t *payload, int len)
                 snprintf(current_ssid, sizeof(current_ssid), "%s", ssid_value);  //复制ssid值到全局变量
                 snprintf(current_password, sizeof(current_password), "%s", password_value);  //复制password值到全局变量
 
-                /* 持久化保存，下次启动优先直连 */
-                wifi_nvs_save_credentials(ssid_value, password_value);
-
                 xEventGroupSetBits(apcfg_ev, APCFG_BIT);   //设置事件标志位
 
                 //此回调函数里面由websocket底层调用，不宜直接调用关闭服务器操作
@@ -539,14 +495,15 @@ void wifi_apcfg_init(p_wifi_state_callback f)
     apcfg_ev = xEventGroupCreate();    //创建事件标志组
     xTaskCreatePinnedToCore(apcfg_task,"apcfg",4096,NULL,3,NULL,1);   //创建freertos任务函数
 
-    /* 优先尝试用 NVS 中保存的密码直连，没有则进入 AP 配网 */
-    char saved_ssid[32] = {0};
-    char saved_pswd[64] = {0};
-    if (wifi_nvs_load_credentials(saved_ssid, saved_pswd)) 
+    /* 优先用 IDF 内置 NVS 中保存的 WiFi 配置直连，没有则进入 AP 配网 */
+    wifi_config_t saved_cfg = {0};
+    esp_wifi_get_config(WIFI_IF_STA, &saved_cfg);
+    if (saved_cfg.sta.ssid[0] != '\0')
     {
-        ESP_LOGI(TAG_APCFG, "发现已保存的 WiFi: %s，尝试直连", saved_ssid);
-        wifi_manager_connect(saved_ssid, saved_pswd);
-    } else 
+        ESP_LOGI(TAG_APCFG, "发现已保存的 WiFi: %s，尝试直连", saved_cfg.sta.ssid);
+        wifi_manager_connect((const char *)saved_cfg.sta.ssid,
+                             (const char *)saved_cfg.sta.password);
+    } else
     {
         ESP_LOGI(TAG_APCFG, "无保存的 WiFi 密码，进入 AP 配网模式");
         wifi_apcfg_start();
