@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "audio.h"
-#include "bsp_config.h"
+#include "board_def.h"
+#include "bsp_audio.h"
 #include <driver/gpio.h>
 
 
@@ -19,10 +20,10 @@
 void start_audio(void)
 {
     //初始化喇叭
-    init_speaker(AUDIO_I2S_SPK_GPIO_BCLK, AUDIO_I2S_SPK_GPIO_WS, AUDIO_I2S_SPK_GPIO_DOUT, AUDIO_OUTPUT_SAMPLE_RATE);
+    init_speaker(AUDIO_I2S_SPK_GPIO_BCLK, AUDIO_I2S_SPK_GPIO_LRCK, AUDIO_I2S_SPK_GPIO_DOUT, AUDIO_OUTPUT_SAMPLE_RATE);
 
     //初始化麦克风
-    init_microphone(AUDIO_I2S_MIC_GPIO_BCLK, AUDIO_I2S_MIC_GPIO_WS, AUDIO_I2S_MIC_GPIO_DIN, AUDIO_INPUT_SAMPLE_RATE);
+    init_microphone(AUDIO_I2S_MIC_GPIO_SCK, AUDIO_I2S_MIC_GPIO_WS, AUDIO_I2S_MIC_GPIO_DIN, AUDIO_INPUT_SAMPLE_RATE);
 
 }
 
