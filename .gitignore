@@ -85,4 +85,6 @@ Desktop.ini
 .vscode/.cache
 .DS_Store
 *.log
-components/BSP/IOT/onenet_mqtt_key.h
+
+# 秘钥
+onenet_mqtt_key.h

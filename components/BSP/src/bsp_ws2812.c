@@ -5,7 +5,7 @@
  */
 
 #include "esp_check.h"
-#include "led_ws2812.h"
+#include "bsp_ws2812.h"
 #include "driver/rmt_tx.h"
 #include <math.h>
 
@@ -117,8 +117,7 @@ static void led_strip_rgb2hsv(uint32_t r, uint32_t g, uint32_t b, uint32_t *h, u
     if (max_val == 0.0f) 
 	{
         *s = 0; // V为0时，S定义为0（黑色）
-    } 
-	else 
+    }else 
 	{
         *s = (int)((delta / max_val) * 100.0f + 0.5f); // +0.5f 用于四舍五入
     }
@@ -127,20 +126,17 @@ static void led_strip_rgb2hsv(uint32_t r, uint32_t g, uint32_t b, uint32_t *h, u
     if (delta == 0.0f) 
 	{
         *h = 0; // S为0时，H无定义，通常设为0
-    } 
-	else 
+    }else 
 	{
         if (max_val == rf) 
 		{
             // 红色扇区
             *h = (int)(60.0f * fmodf(((gf - bf) / delta), 6.0f) + 0.5f);
-        } 
-		else if (max_val == gf) 
+        }else if (max_val == gf) 
 		{
             // 绿色扇区
             *h = (int)(60.0f * (((bf - rf) / delta) + 2.0f) + 0.5f);
-        } 
-		else 
+        }else 
 		{ // max_val == bf
             // 蓝色扇区
             *h = (int)(60.0f * (((rf - gf) / delta) + 4.0f) + 0.5f);
@@ -150,8 +146,7 @@ static void led_strip_rgb2hsv(uint32_t r, uint32_t g, uint32_t b, uint32_t *h, u
         if (*h < 0) 
 		{
             *h += 360;
-        } 
-		else if (*h >= 360) 
+        }else if (*h >= 360) 
 		{
             *h -= 360;
         }

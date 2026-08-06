@@ -1711,8 +1711,8 @@ static void onenet_ota_task(void *param)
     esp_restart();  //重启
 
     delete_ota_task : 
-        ota_is_running = false;
-        vTaskDelete(NULL);
+    ota_is_running = false;
+    vTaskDelete(NULL);
 }
 
 

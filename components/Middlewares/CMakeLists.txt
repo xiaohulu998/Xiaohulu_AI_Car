@@ -3,7 +3,9 @@
 
 # 源码子文件目录
 set(src_dirs
-            src
+#            src/audio
+#            src/ble
+            src/network
             )
 
 # 对外暴露头文件目录，其他文件 #include "XX.h" 可直接找到 Middlewares/XX/XX.h
@@ -17,11 +19,20 @@ set(requires
             freertos
             mqtt
             esp_http_client
+            esp_http_server
             esp_https_ota
             app_update
             json
             mbedtls
             esp_system
+            bt
+            vfs
+            nvs_flash
+            spiffs
+            esp_timer
+            esp_netif
+            esp_event
+            esp-tls
             )
 
 # 注册【Middlewares 组件】到组件列表中, 以便其他组件可以依赖使用

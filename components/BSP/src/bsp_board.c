@@ -21,7 +21,7 @@ esp_err_t bsp_board_init(void)
         ESP_LOGW(TAG, "开发板硬件已完成初始化，跳过该步骤...");
         return ESP_OK;
     }
-
+    
     /* ---- 1. NVS Flash 初始化 ---- */
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) 
