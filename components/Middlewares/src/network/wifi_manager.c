@@ -477,6 +477,11 @@ static void apcfg_task(void *param)
         ev = xEventGroupWaitBits(apcfg_ev,APCFG_BIT, pdTRUE, pdFALSE, pdMS_TO_TICKS(10*1000));
         if(ev & APCFG_BIT)  //bit0位被置1
         {
+            /* 配网页反馈：设备已收到密码，即将连接 */
+            const char *msg = "{\"status\":\"connecting\"}";
+            ws_server_send((uint8_t *)msg, strlen(msg));
+            vTaskDelay(pdMS_TO_TICKS(300));   // 等 WS 发送完毕再关服
+
             ws_server_stop();  //停止服务器
             wifi_manager_connect(current_ssid, current_password);   //连接WIFI
         }  
