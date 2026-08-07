@@ -9,7 +9,7 @@
 #include "cJSON.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include "onenet_mqtt_key.h"
+#include "mqtt_onenet_key.h"
 /* ================================================================
  *  OneNET 平台三元组（真实key定义在 onenet_mqtt_key.h 中）
  * ================================================================ */
