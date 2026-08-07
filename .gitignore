@@ -89,4 +89,4 @@ Desktop.ini
 # 秘钥
 onenet_mqtt_key.h
 .claude
-components/Middlewares/include/mqtt.onenet_key.h
+components/Middlewares/include/mqtt_onenet_key.h
