@@ -86,7 +86,8 @@ Desktop.ini
 .DS_Store
 *.log
 
-# 秘钥
-onenet_mqtt_key.h
-.claude
-components/Middlewares/include/mqtt_onenet_key.h
+# OneNet密钥头文件，全局忽略，不上传Git
+mqtt_onenet_key.h
+
+# Claude AI缓存目录
+.claude/
