@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小智小车遥控器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .joystick-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            margin: 0 auto 30px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            border: 3px solid #ddd;
+            touch-action: none;
+        }
+
+        .joystick {
+            position: absolute;
+            width: 112px;
+            height: 112px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.1s ease;
+            cursor: pointer;
+        }
+
+        .joystick.active {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+
+        .direction-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .direction-indicator.active {
+            opacity: 1;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #FF6B6B, #EE5A24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        .stop-btn {
+            background: linear-gradient(135deg, #DC3545, #C82333);
+        }
+
+        .stop-btn:hover {
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+        }
+
+        /* 动作控制区域样式 */
+        .actions-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            border: 1px solid #e9ecef;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .action-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .action-group h4 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 1.1em;
+            text-align: center;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 8px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+            min-width: 100px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .action-btn:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+
+            .joystick-container {
+                width: 320px;
+                height: 320px;
+            }
+
+            .joystick {
+                width: 96px;
+                height: 96px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .action-buttons {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .action-btn {
+                font-size: 13px;
+                padding: 8px 12px;
+                min-width: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚗 小智小车遥控器</h1>
+        <div class="subtitle">触摸或拖拽摇杆控制小车移动</div>
+
+        <div class="joystick-container" id="joystick-container">
+            <div class="joystick" id="joystick"></div>
+            <div class="direction-indicator" id="direction-indicator">⏹️</div>
+        </div>
+
+        <div class="status connected" id="status">
+            <strong>状态:</strong> <span id="status-text">已连接</span>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn stop-btn" onclick="stopCar()">🛑 停止</button>
+            <a href="/config" class="control-btn" style="background: linear-gradient(135deg, #FF9800, #F57C00);">⚙️ 配置</a>
+        </div>
+
+        <div class="actions-section">
+            <h3 style="color: #333; margin: 20px 0 15px 0; text-align: center;">🎭 动作控制</h3>
+
+            <div class="action-buttons">
+                <!-- 基本移动动作 -->
+                <div class="action-group">
+                    <h4>🚗 基本移动</h4>
+                    <button class="action-btn" onclick="executeAction('move_forward')">⬆️ 前进</button>
+                    <button class="action-btn" onclick="executeAction('move_backward')">⬇️ 后退</button>
+                    <button class="action-btn" onclick="executeAction('turn_left')">⬅️ 左转</button>
+                    <button class="action-btn" onclick="executeAction('turn_right')">➡️ 右转</button>
+                    <button class="action-btn" onclick="executeAction('spin_around')">🔄 转圈</button>
+                </div>
+
+                <!-- 情感动作 -->
+                <div class="action-group">
+                    <h4>😊 情感表达</h4>
+                    <button class="action-btn" onclick="executeAction('wake_up')">🌅 唤醒</button>
+                    <button class="action-btn" onclick="executeAction('happy')">😄 开心</button>
+                    <button class="action-btn" onclick="executeAction('sad')">😢 悲伤</button>
+                    <button class="action-btn" onclick="executeAction('thinking')">🤔 思考</button>
+                    <button class="action-btn" onclick="executeAction('listening')">👂 倾听</button>
+                    <button class="action-btn" onclick="executeAction('speaking')">💬 说话</button>
+                    <button class="action-btn" onclick="executeAction('wiggle')">🌊 摆动</button>
+                    <button class="action-btn" onclick="executeAction('dance')">💃 跳舞</button>
+                </div>
+
+                <!-- 高级情感 -->
+                <div class="action-group">
+                    <h4>🎭 高级情感</h4>
+                    <button class="action-btn" onclick="executeAction('excited')">🤩 兴奋</button>
+                    <button class="action-btn" onclick="executeAction('loving')">😍 爱慕</button>
+                    <button class="action-btn" onclick="executeAction('angry')">😠 生气</button>
+                    <button class="action-btn" onclick="executeAction('surprised')">😲 惊讶</button>
+                    <button class="action-btn" onclick="executeAction('confused')">😕 困惑</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let joystick = document.getElementById('joystick');
+        let joystickContainer = document.getElementById('joystick-container');
+        let directionIndicator = document.getElementById('direction-indicator');
+        let statusText = document.getElementById('status-text');
+
+        let isDragging = false;
+        let centerX = 0;
+        let centerY = 0;
+        let currentDirection = 0;
+        let currentSpeed = 0;
+        let isRequestPending = false; // 防止并发请求
+
+
+        // 初始化摇杆中心位置
+        function initJoystick() {
+            const rect = joystickContainer.getBoundingClientRect();
+            centerX = rect.left + rect.width / 2;
+            centerY = rect.top + rect.height / 2;
+        }
+
+        // 更新摇杆位置
+        function updateJoystickPosition(x, y) {
+            const rect = joystickContainer.getBoundingClientRect();
+            const containerCenterX = rect.left + rect.width / 2;
+            const containerCenterY = rect.top + rect.height / 2;
+
+            // 计算相对于容器的位置
+            let relativeX = x - containerCenterX;
+            let relativeY = y - containerCenterY;
+
+            // 限制在圆形范围内
+            const maxRadius = rect.width / 2 - 56;
+            const distance = Math.sqrt(relativeX * relativeX + relativeY * relativeY);
+
+            if (distance > maxRadius) {
+                relativeX = (relativeX / distance) * maxRadius;
+                relativeY = (relativeY / distance) * maxRadius;
+            }
+
+            // 更新摇杆位置
+            joystick.style.left = `calc(50% + ${relativeX}px)`;
+            joystick.style.top = `calc(50% + ${relativeY}px)`;
+
+            // 计算方向和速度
+            const normalizedX = relativeX / maxRadius;
+            const normalizedY = relativeY / maxRadius;
+
+            // 计算方向角度 (0-360度)
+            let angle = Math.atan2(normalizedY, normalizedX) * (180 / Math.PI);
+            if (angle < 0) angle += 360;
+
+            // 计算速度 (0-100)
+            const speed = Math.min(distance / maxRadius, 1) * 100;
+
+            // 转换方向为整数值
+            let direction = 0; // 停止
+            if (speed > 5) { // 最小阈值 (降低阈值以响应点击)
+                if (angle >= 315 || angle < 45) {
+                    direction = 1; // 右
+                } else if (angle >= 45 && angle < 135) {
+                    direction = 2; // 下
+                } else if (angle >= 135 && angle < 225) {
+                    direction = 3; // 左
+                } else if (angle >= 225 && angle < 315) {
+                    direction = 4; // 上
+                }
+            }
+
+            return { direction, speed: Math.round(speed) };
+        }
+
+        // 更新方向指示器
+        function updateDirectionIndicator(direction, speed) {
+            let icon = '⏹️';
+            let text = '停止';
+
+            if (speed > 5) {
+                switch(direction) {
+                    case 1: icon = '➡️'; text = '右转'; break;
+                    case 2: icon = '⬇️'; text = '后退'; break;
+                    case 3: icon = '⬅️'; text = '左转'; break;
+                    case 4: icon = '⬆️'; text = '前进'; break;
+                }
+            }
+
+            directionIndicator.textContent = icon;
+            directionIndicator.classList.toggle('active', speed > 5);
+        }
+
+        // 发送控制命令
+        // 发送控制命令
+        async function sendControl(direction, speed) {
+            // 停止命令(0, 0)优先处理，不受并发限制
+            if (direction === 0 && speed === 0) {
+                currentDirection = 0;
+                currentSpeed = 0;
+                try {
+                    const response = await fetch('/api/control', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            direction: 0,
+                            speed: 0
+                        })
+                    });
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    statusText.textContent = '已连接';
+                    document.getElementById('status').className = 'status connected';
+                } catch (error) {
+                    console.error('Failed to send stop control:', error);
+                    statusText.textContent = '连接错误';
+                    document.getElementById('status').className = 'status error';
+                }
+                return;
+            }
+
+            if (direction === currentDirection && speed === currentSpeed) {
+                return; // 避免重复发送相同命令
+            }
+
+            // 如果有请求正在进行中，跳过
+            if (isRequestPending) {
+                return;
+            }
+
+            currentDirection = direction;
+            currentSpeed = speed;
+            isRequestPending = true;
+
+            try {
+                const response = await fetch('/api/control', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        direction: direction,
+                        speed: speed
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                statusText.textContent = '已连接';
+                document.getElementById('status').className = 'status connected';
+            } catch (error) {
+                console.error('Failed to send control:', error);
+                statusText.textContent = '连接错误';
+                document.getElementById('status').className = 'status error';
+            } finally {
+                isRequestPending = false;
+            }
+        }
+
+        // 停止小车
+        function stopCar() {
+            // 重置状态
+            isDragging = false;
+            currentDirection = 0;
+            currentSpeed = 0;
+
+            // 重置UI
+            joystick.style.left = '50%';
+            joystick.style.top = '50%';
+            joystick.classList.remove('active');
+            updateDirectionIndicator(0, 0);
+
+            // 发送停止命令
+            sendControl(0, 0);
+        }
+
+
+        // 执行电机动作
+        async function executeAction(action) {
+            try {
+                const response = await fetch('/api/motor/action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: action
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const result = await response.json();
+                console.log('Action executed:', action, result);
+
+                // 更新状态显示
+                statusText.textContent = '动作执行成功';
+                document.getElementById('status').className = 'status connected';
+
+            } catch (error) {
+                console.error('Failed to execute action:', action, error);
+                statusText.textContent = '动作执行失败';
+                document.getElementById('status').className = 'status disconnected';
+            }
+        }
+
+        // 鼠标事件
+        joystickContainer.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            joystick.classList.add('active');
+            initJoystick();
+            const { direction, speed } = updateJoystickPosition(e.clientX, e.clientY);
+            updateDirectionIndicator(direction, speed);
+            sendControl(direction, speed);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const { direction, speed } = updateJoystickPosition(e.clientX, e.clientY);
+                updateDirectionIndicator(direction, speed);
+                sendControl(direction, speed);
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                stopCar();
+            }
+        });
+
+        // 触摸事件
+        joystickContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            joystick.classList.add('active');
+            initJoystick();
+            const touch = e.touches[0];
+            const { direction, speed } = updateJoystickPosition(touch.clientX, touch.clientY);
+            updateDirectionIndicator(direction, speed);
+            sendControl(direction, speed);
+        });
+
+        joystickContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isDragging) {
+                const touch = e.touches[0];
+                const { direction, speed } = updateJoystickPosition(touch.clientX, touch.clientY);
+                updateDirectionIndicator(direction, speed);
+                sendControl(direction, speed);
+            }
+        });
+
+        joystickContainer.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (isDragging) {
+                stopCar();
+            }
+        });
+
+        // 全局触摸结束事件，确保在任何地方松手都能停止
+        document.addEventListener('touchend', (e) => {
+            if (isDragging && e.target !== joystick && e.target !== joystickContainer) {
+                stopCar();
+            }
+        });
+
+        // 定期发送控制命令（当摇杆被拖拽时）
+        setInterval(() => {
+            if (isDragging) {
+                sendControl(currentDirection, currentSpeed);
+            }
+        }, 200); // 每200ms发送一次，减少服务器压力
+
+        // 初始化
+        initJoystick();
+        window.addEventListener('resize', initJoystick);
+    </script>
+</body>
+</html>

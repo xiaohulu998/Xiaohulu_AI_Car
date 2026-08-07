@@ -17,3 +17,5 @@ dependencies:
   # espressif/mqtt: ^1.0.0
   # espressif/led_strip: ^3.0.3
   # chill-sam/ssd1306: ^1.1.2
+  lvgl/lvgl: ^9.5.0
+  espressif/esp_lvgl_port: ^2.8.0~1
